@@ -27,6 +27,10 @@
         .login-box h2 { margin-bottom: 20px; color: var(--accent); }
         .login-box input { margin-bottom: 15px; }
 
+        /* MODAL REASIGNAR (NUEVO) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .modal-box { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
+
         /* APP */
         #app_container { display: none; max-width: 1000px; margin: 0 auto; }
         
@@ -90,6 +94,7 @@
 </head>
 <body>
 
+<!-- PANTALLA DE LOGIN -->
 <div id="login_screen">
     <div class="login-box">
         <h2>🚚 Logística</h2>
@@ -97,6 +102,33 @@
         <input type="password" id="login_pass" placeholder="Contraseña">
         <button class="btn-primary" onclick="iniciarSesion()">Ingresar</button>
         <p id="login_error" style="color: red; display: none; margin-top: 10px; font-size: 0.9em;">Usuario o contraseña incorrectos</p>
+    </div>
+</div>
+
+<!-- VENTANA MODAL PARA REASIGNAR CON OPCIONES KM -->
+<div id="modal_reasignar" class="modal-overlay">
+    <div class="modal-box">
+        <h3 style="color: var(--accent); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">🔄 Reasignar a Nueva Planilla</h3>
+        
+        <div class="form-group">
+            <label>NUEVO N° de Planilla</label>
+            <input type="text" id="reasignar_planilla" placeholder="Ej. 123456" required>
+        </div>
+        
+        <div class="form-group">
+            <label>¿Dónde se carga? (IMPORTANTE)</label>
+            <select id="reasignar_lugar" style="border: 2px solid var(--accent); font-weight: bold;">
+                <option value="">Seleccionar lugar...</option>
+                <option value="KM 20">📍 CARGAR EN: KM 20</option>
+                <option value="KM 17.5">📍 CARGAR EN: KM 17.5</option>
+                <option value="OTRO">Carga Normal (Sede Central)</option>
+            </select>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn-danger" style="flex: 1; margin-top:0;" onclick="cerrarModalReasignar()">Cancelar</button>
+            <button class="btn-success" style="flex: 1;" onclick="confirmarReasignar()">Confirmar</button>
+        </div>
     </div>
 </div>
 
@@ -137,8 +169,6 @@
 
         <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin:0; color: var(--accent);">Movimientos Activos</h3>
-            
-            <!-- NUEVO: CALENDARIO PARA IMPRIMIR -->
             <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="margin:0; font-size:0.85em; color:var(--text-muted); font-weight:bold;">Imprimir por fecha:</label>
                 <input type="date" id="fecha_impresion_caja" style="padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main);">
@@ -232,7 +262,6 @@
 </div>
 
 <script>
-    // FONDOS Y USUARIOS (Caja ahora es un Rosa más claro: #fce4ec)
     const CONFIG_USUARIOS = {
         "deposito":     { pass: "1234",         rol: "deposito",  nombre: "Depósito",      bgColor: "#e1f5fe" }, 
         "logistica":    { pass: "4321",         rol: "logistica", nombre: "Logística",     bgColor: "#fff9c4" }, 
@@ -244,24 +273,20 @@
     let usuarioActual = null;
     let rolActual = null;
     let idEdicionActiva = null; 
+    let idReasignarActivo = null; // Variable para saber qué pedido estamos reasignando en el Modal
 
-    const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
+    // ⚠️ REEMPLAZA ESTO CON EL NUEVO ENLACE CON PERMISO A "CUALQUIER PERSONA" ⚠️
+    const API_URL = "PEGAR_AQUI_EL_NUEVO_ENLACE"; 
     
     let datosGlobales = [];
 
-    // ==========================================
-    // HERRAMIENTAS FLEXIBLES (Filtros tolerantes a errores del Excel)
-    // ==========================================
     const esEnEspera = (p) => p.estado && p.estado.toLowerCase().includes('espera');
     const esNoLlevo = (p) => p.estado && p.estado.toLowerCase().includes('llev');
     const esEntregado = (p) => p.estado && p.estado.toLowerCase().includes('carg');
     const esPagado = (p) => p.pago && p.pago.toLowerCase().includes('pagado');
 
-
     window.onload = function() {
-        // Colocamos la fecha de hoy por defecto en el calendario de imprimir
         document.getElementById('fecha_impresion_caja').value = obtenerFecha();
-
         const sesionGuardada = localStorage.getItem("sesion_logistica");
         if(sesionGuardada && CONFIG_USUARIOS[sesionGuardada]) {
             ingresarAlSistema(sesionGuardada);
@@ -391,13 +416,11 @@
         datosGlobales.forEach(p => {
             if(!p.fecha) return;
             
-            // Calculo Mes Seguro
             if (p.fecha.startsWith(prefijoMes)) {
                 totalMes++;
                 if (esEntregado(p)) entregadosMes++;
             }
 
-            // Calculo Semana
             let pParts = p.fecha.split('-');
             if (pParts.length === 3) {
                 let pDate = new Date(pParts[0], pParts[1] - 1, pParts[2]);
@@ -492,8 +515,19 @@
             let badgeClass = esEnEspera(p) ? 'espera' : 'salida';
             let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
             
+            // NUEVO: CAJA AMARILLA GIGANTE SI TIENE KM 20 O KM 17.5
+            let bannerUbicacion = "";
+            if (p.observacion && String(p.observacion).includes("CARGAR EN")) {
+                bannerUbicacion = `
+                    <div style="background: #fff59d; color: #b71c1c; padding: 12px; border-radius: 6px; font-size: 1.2em; font-weight: 900; text-align: center; margin-bottom: 12px; border: 3px dashed #b71c1c; text-transform: uppercase; letter-spacing: 1px;">
+                        ${p.observacion}
+                    </div>
+                `;
+            }
+
             let html = `
                 <div class="card" ${!esEnEspera(p) ? 'style="opacity: 0.7;"' : ''}>
+                    ${bannerUbicacion}
                     <span class="badge ${badgeClass}">${p.estado}</span>
                     ${esPagado(p) ? '<span class="badge salida" style="float:right;">Pagado</span>' : ''}
                     <h3>Planilla: ${p.n_planilla}</h3>
@@ -603,7 +637,7 @@
             `;
             
             if(rolActual === 'logistica' || rolActual === 'admin') {
-                html += `<button class="btn-primary" style="margin-top:15px;" onclick="reasignarPedido('${p.id}')">🔄 Reasignar a Nueva Planilla</button>`;
+                html += `<button class="btn-primary" style="margin-top:15px;" onclick="abrirModalReasignar('${p.id}')">🔄 Reasignar a Nueva Planilla</button>`;
                 html += `
                     <div style="margin-top: 10px; display:flex; gap:5px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button style="flex:1; background:var(--warning); padding:8px; font-size:0.85em;" onclick="iniciarEdicion('${p.id}')">✏️ Editar</button>
@@ -614,6 +648,57 @@
             html += `</div>`;
             contenedor.innerHTML += html;
         });
+    }
+
+    // =====================================
+    // LOGICA DEL MODAL DE REASIGNAR (NUEVO)
+    // =====================================
+    function abrirModalReasignar(id) {
+        idReasignarActivo = id;
+        document.getElementById('reasignar_planilla').value = '';
+        document.getElementById('reasignar_lugar').value = '';
+        document.getElementById('modal_reasignar').style.display = 'flex';
+    }
+
+    function cerrarModalReasignar() {
+        document.getElementById('modal_reasignar').style.display = 'none';
+        idReasignarActivo = null;
+    }
+
+    function confirmarReasignar() {
+        let nuevaPlanilla = document.getElementById('reasignar_planilla').value.trim();
+        let lugar = document.getElementById('reasignar_lugar').value;
+
+        if(!nuevaPlanilla || !lugar) {
+            alert("Por favor, completa el número de planilla y elige el lugar de carga.");
+            return;
+        }
+
+        // Si elige KM 20 o KM 17.5, lo guardamos. Si es OTRO, se queda en blanco.
+        let obsTexto = (lugar !== "OTRO") ? `📍 CARGAR EN: ${lugar}` : "";
+
+        let item = datosGlobales.find(x => x.id === idReasignarActivo);
+        if(item) {
+            item.n_planilla = nuevaPlanilla;
+            item.estado = "En espera";
+            item.hora_salida = "";
+            item.observacion = obsTexto;
+            item.fecha = obtenerFecha(); 
+            item.entregado = "Pendiente";
+            
+            alert(`✅ Asignado a planilla ${nuevaPlanilla}. Volvió a Inicio.`);
+            cerrarModalReasignar();
+            document.getElementById('tab_inicio').click();
+        }
+
+        const dataUpdate = { 
+            action: "reasignar", 
+            id: idReasignarActivo, 
+            n_planilla: nuevaPlanilla,
+            observacion: obsTexto
+        };
+        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
+        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
     function eliminarPedido(id) {
@@ -700,7 +785,6 @@
             datosGlobales.push({...dataForm, hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
             this.reset();
             alert("✅ Pedido creado exitosamente.");
-            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
         }
@@ -714,22 +798,6 @@
             renderizarCaja(); renderizarHoy(); filtrarReporte();
         }
         const dataUpdate = { action: "update_pago", id: id, pago: "Pagado" };
-        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
-        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
-    }
-
-    function reasignarPedido(id) {
-        let nuevaPlanilla = prompt("Ingresa el NUEVO N° de Planilla para este reenvío:");
-        if(!nuevaPlanilla) return; 
-        let item = datosGlobales.find(x => x.id === id);
-        if(item) {
-            item.n_planilla = nuevaPlanilla; item.estado = "En espera";
-            item.hora_salida = ""; item.observacion = "";
-            item.fecha = obtenerFecha(); item.entregado = "Pendiente";
-            alert(`✅ Asignado a planilla ${nuevaPlanilla}. Volvió a Inicio.`);
-            document.getElementById('tab_inicio').click();
-        }
-        const dataUpdate = { action: "reasignar", id: id, n_planilla: nuevaPlanilla };
         fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
@@ -762,7 +830,6 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
-    // AHORA LEE LA FECHA DESDE EL CALENDARIO DE LA PANTALLA
     function imprimirTicketsCaja() {
         let fechaBuscada = document.getElementById('fecha_impresion_caja').value;
         
@@ -774,7 +841,8 @@
         let pedidosImprimir = datosGlobales.filter(p => p.fecha === fechaBuscada && !esNoLlevo(p));
 
         if (pedidosImprimir.length === 0) { 
-            alert(`No hay pedidos activos para la fecha seleccionada.`); 
+            let fbCortada = fechaBuscada.split('-').reverse().join('/');
+            alert(`No hay pedidos activos para la fecha: ${fbCortada}`); 
             return; 
         }
 
