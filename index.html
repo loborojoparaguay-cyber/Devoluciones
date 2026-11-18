@@ -158,20 +158,14 @@
             <div class="form-group"><label>N° Planilla</label><input type="text" id="n_planilla" required></div>
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1"><label>Motivo</label><input type="text" id="motivo" placeholder="Ej. Reparto regular"></div>
-                
                 <div class="form-group" style="flex:1"><label>Móvil</label>
-                    <select id="movil">
-                        <option value="">Seleccionar...</option>
-                    </select>
+                    <select id="movil"><option value="">Seleccionar...</option></select>
                 </div>
             </div>
             
             <div class="form-group"><label>Cliente</label><input type="text" id="cliente" required></div>
-            
             <div class="form-group"><label>Chofer</label>
-                <select id="chofer" required>
-                    <option value="">Seleccionar Chofer...</option>
-                </select>
+                <select id="chofer" required><option value="">Seleccionar Chofer...</option></select>
             </div>
             
             <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" placeholder="(Opcional)"></div>
@@ -238,6 +232,7 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
+    // ENLACE CORRECTO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -285,7 +280,6 @@
             document.getElementById('tab_registro').style.display = 'none';
             document.getElementById('tab_caja').style.display = 'none';
         }
-        
         if(rolActual !== 'logistica' && rolActual !== 'admin') {
             document.getElementById('btn_guardar_nuevo').style.display = 'none';
             document.getElementById('aviso_bloqueo_registro').style.display = 'block';
@@ -383,20 +377,22 @@
             
             let dataServer = await resp.json();
             
-            // CÓDIGO ESCUDO (Por si el Apps Script no se actualizó bien)
+            // ESCUDO PROTECTOR PARA EVITAR QUE SE QUEDE COLGADO
             let registrosCrudos = [];
             if (Array.isArray(dataServer)) {
-                registrosCrudos = dataServer; // Usa el formato viejo para que no se rompa la web
+                // Si el Excel no fue actualizado, usa el formato viejo sin listas
+                registrosCrudos = dataServer; 
             } else if (dataServer && dataServer.registros) {
-                registrosCrudos = dataServer.registros; // Usa el formato nuevo
+                // Si el Excel fue actualizado, usa el formato nuevo y carga las listas
+                registrosCrudos = dataServer.registros; 
                 llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
             }
             
             datosGlobales = registrosCrudos.map(p => {
-                if(p.fecha && p.fecha.includes('T')) p.fecha = p.fecha.split('T')[0];
+                if(p.fecha && typeof p.fecha === 'string' && p.fecha.includes('T')) p.fecha = p.fecha.split('T')[0];
                 return p;
             });
-            
+
             calcularEstadisticas();
             renderizarHoy();
             renderizarPendientes();
@@ -404,6 +400,8 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
+            // Mostrará alerta en vez de colgarse si hay falla grave
+            if (!enSilencio) alert("Error conectando con la base de datos.");
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -450,7 +448,7 @@
 
         listaFinal.forEach(p => {
             let badgeClass = p.estado === 'En espera' ? 'espera' : 'salida';
-            let fechaBonita = p.fecha.split('-').reverse().join('/');
+            let fechaBonita = (p.fecha && typeof p.fecha === 'string') ? p.fecha.split('-').reverse().join('/') : '';
             
             let html = `
                 <div class="card" ${p.estado !== 'En espera' ? 'style="opacity: 0.7;"' : ''}>
@@ -482,7 +480,6 @@
                     </div>
                 `;
             }
-
             html += `</div>`;
             contenedor.innerHTML += html;
         });
@@ -498,10 +495,10 @@
         
         if (txtFiltro) {
             itemsCaja = itemsCaja.filter(p => 
-                (p.cliente && p.cliente.toLowerCase().includes(txtFiltro)) ||
-                (p.n_planilla && p.n_planilla.toLowerCase().includes(txtFiltro)) ||
-                (p.chofer && p.chofer.toLowerCase().includes(txtFiltro)) ||
-                (p.factura && p.factura.toLowerCase().includes(txtFiltro))
+                (p.cliente && String(p.cliente).toLowerCase().includes(txtFiltro)) ||
+                (p.n_planilla && String(p.n_planilla).toLowerCase().includes(txtFiltro)) ||
+                (p.chofer && String(p.chofer).toLowerCase().includes(txtFiltro)) ||
+                (p.factura && String(p.factura).toLowerCase().includes(txtFiltro))
             );
         }
 
@@ -592,7 +589,6 @@
         if(!item) return;
 
         idEdicionActiva = id; 
-
         document.getElementById('n_planilla').value = item.n_planilla;
         document.getElementById('motivo').value = item.motivo || "";
         
@@ -615,7 +611,6 @@
         document.getElementById('titulo_formulario').innerText = "✏️ Editando Pedido";
         document.getElementById('btn_guardar_nuevo').innerText = "💾 Guardar Cambios";
         document.getElementById('btn_guardar_nuevo').style.background = "var(--warning)";
-
         document.getElementById('tab_registro').click();
     }
 
@@ -640,7 +635,6 @@
             
             let item = datosGlobales.find(x => x.id === idEdicionActiva);
             Object.assign(item, dataForm);
-            
             alert("✅ Cambios guardados correctamente.");
             
             idEdicionActiva = null;
@@ -650,10 +644,8 @@
             
             this.reset();
             document.getElementById('tab_inicio').click();
-            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
-            
         } else {
             dataForm.action = "add";
             dataForm.id = "ID-" + Date.now();
@@ -664,7 +656,6 @@
             datosGlobales.push({...dataForm, estado: "En espera", hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
             this.reset();
             alert("✅ Pedido creado exitosamente.");
-            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
         }
@@ -736,4 +727,86 @@
         if (opcion.trim() !== "") {
             pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.trim().toLowerCase()) && p.estado !== 'No se llevó');
         } else {
-            const
+            const hoy = obtenerFecha();
+            pedidosImprimir = datosGlobales.filter(p => 
+                (p.estado === 'En espera') || 
+                (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+            );
+        }
+
+        if (pedidosImprimir.length === 0) { 
+            alert("No hay pedidos que coincidan para imprimir."); 
+            return; 
+        }
+
+        const contenedor = document.getElementById('print_tickets_container');
+        let html = '<div class="ticket-grid">';
+        pedidosImprimir.forEach(p => {
+            html += `
+                <div class="ticket">
+                    <h4>🎫 ADJUNTO CON ESTA PLANILLA</h4>
+                    <p><strong>Planilla:</strong> ${p.n_planilla}</p>
+                    <p><strong>Móvil:</strong> ${p.movil || '-'}</p>
+                    <p><strong>Chofer:</strong> ${p.chofer}</p>
+                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Motivo:</strong> ${p.motivo || '-'}</p>
+                    <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
+                </div>
+            `;
+        });
+        html += '</div>';
+        contenedor.innerHTML = html;
+        document.body.classList.add('imprimiendo-tickets');
+        window.print();
+        document.body.classList.remove('imprimiendo-tickets');
+    }
+
+    function filtrarReporte() {
+        const txtFiltro = document.getElementById('filtro_general').value.toLowerCase();
+        const dateFiltro = document.getElementById('filtro_fecha').value;
+        const tbody = document.getElementById('tabla_reporte');
+        tbody.innerHTML = '';
+
+        const filtrados = datosGlobales.filter(p => {
+            const matchTexto = (p.cliente && String(p.cliente).toLowerCase().includes(txtFiltro)) ||
+                               (p.n_planilla && String(p.n_planilla).toLowerCase().includes(txtFiltro)) ||
+                               (p.chofer && String(p.chofer).toLowerCase().includes(txtFiltro)) ||
+                               (p.factura && String(p.factura).toLowerCase().includes(txtFiltro));
+            const matchFecha = dateFiltro ? (p.fecha === dateFiltro) : true;
+            return matchTexto && matchFecha;
+        });
+
+        filtrados.forEach(p => {
+            let colorPago = p.pago === 'Pagado' ? 'var(--success)' : 'var(--danger)';
+            let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
+            
+            let accionesHtml = '';
+            if(rolActual === 'logistica' || rolActual === 'admin') {
+                accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
+            }
+            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
+                // ICONO REEMPLAZADO AQUI
+                accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
+            }
+
+            let fechaBonita = (p.fecha && typeof p.fecha === 'string') ? p.fecha.split('-').reverse().join('/') : '';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td style="white-space:nowrap;">${fechaBonita}</td>
+                    <td><b>${p.n_planilla}</b></td>
+                    <td>${p.motivo || '-'}</td>
+                    <td>${p.movil || '-'}</td>
+                    <td>${p.cliente}</td>
+                    <td>${p.chofer}</td>
+                    <td>${p.factura || '-'}</td>
+                    <td>${p.estado}</td>
+                    <td class="no-print" style="color:${colorPago}; font-weight:bold;">${txtPago}</td>
+                    <td class="no-print" style="white-space:nowrap;">${accionesHtml}</td>
+                </tr>
+            `;
+        });
+    }
+</script>
+</body>
+</html>
