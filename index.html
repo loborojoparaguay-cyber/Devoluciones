@@ -214,7 +214,6 @@
                         <th>Factura</th>
                         <th>Estado</th>
                         <th class="no-print">Est. Pago</th> 
-                        <!-- NUEVA COLUMNA DE ACCIONES -->
                         <th class="no-print">Acciones</th>
                     </tr>
                 </thead>
@@ -239,7 +238,6 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
-    // TU ENLACE INCORPORADO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -385,12 +383,19 @@
             
             let dataServer = await resp.json();
             
-            datosGlobales = dataServer.registros.map(p => {
+            // CÓDIGO ESCUDO (Por si el Apps Script no se actualizó bien)
+            let registrosCrudos = [];
+            if (Array.isArray(dataServer)) {
+                registrosCrudos = dataServer; // Usa el formato viejo para que no se rompa la web
+            } else if (dataServer && dataServer.registros) {
+                registrosCrudos = dataServer.registros; // Usa el formato nuevo
+                llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
+            }
+            
+            datosGlobales = registrosCrudos.map(p => {
                 if(p.fecha && p.fecha.includes('T')) p.fecha = p.fecha.split('T')[0];
                 return p;
             });
-
-            llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
             
             calcularEstadisticas();
             renderizarHoy();
@@ -721,101 +726,14 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
-    // NUEVA LÓGICA DE IMPRESIÓN INTELIGENTE
     function imprimirTicketsCaja() {
         let opcion = prompt("Opciones de impresión:\n1. Deje en blanco y dele a 'Aceptar' para imprimir TODO lo de hoy.\n2. Escriba un N° de Planilla para imprimir solo esa planilla específica:");
         
-        if (opcion === null) return; // Si el usuario cancela
+        if (opcion === null) return; 
 
         let pedidosImprimir = [];
         
         if (opcion.trim() !== "") {
-            // Si escribió algo, buscamos esa planilla en específico (sin importar fecha) excluyendo los rechazados
             pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.trim().toLowerCase()) && p.estado !== 'No se llevó');
         } else {
-            // Si dejó en blanco, imprimimos lo de hoy + en espera
-            const hoy = obtenerFecha();
-            pedidosImprimir = datosGlobales.filter(p => 
-                (p.estado === 'En espera') || 
-                (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
-            );
-        }
-
-        if (pedidosImprimir.length === 0) { 
-            alert("No hay pedidos que coincidan para imprimir."); 
-            return; 
-        }
-
-        const contenedor = document.getElementById('print_tickets_container');
-        let html = '<div class="ticket-grid">';
-        pedidosImprimir.forEach(p => {
-            html += `
-                <div class="ticket">
-                    <h4>🎫 ADJUNTO CON ESTA PLANILLA</h4>
-                    <p><strong>Planilla:</strong> ${p.n_planilla}</p>
-                    <p><strong>Móvil:</strong> ${p.movil || '-'}</p>
-                    <p><strong>Chofer:</strong> ${p.chofer}</p>
-                    <p><strong>Cliente:</strong> ${p.cliente}</p>
-                    <p><strong>Motivo:</strong> ${p.motivo || '-'}</p>
-                    <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
-                </div>
-            `;
-        });
-        html += '</div>';
-        contenedor.innerHTML = html;
-        document.body.classList.add('imprimiendo-tickets');
-        window.print();
-        document.body.classList.remove('imprimiendo-tickets');
-    }
-
-    function filtrarReporte() {
-        const txtFiltro = document.getElementById('filtro_general').value.toLowerCase();
-        const dateFiltro = document.getElementById('filtro_fecha').value;
-        const tbody = document.getElementById('tabla_reporte');
-        tbody.innerHTML = '';
-
-        const filtrados = datosGlobales.filter(p => {
-            const matchTexto = (p.cliente && p.cliente.toLowerCase().includes(txtFiltro)) ||
-                               (p.n_planilla && p.n_planilla.toLowerCase().includes(txtFiltro)) ||
-                               (p.chofer && p.chofer.toLowerCase().includes(txtFiltro)) ||
-                               (p.factura && p.factura.toLowerCase().includes(txtFiltro));
-            const matchFecha = dateFiltro ? (p.fecha === dateFiltro) : true;
-            return matchTexto && matchFecha;
-        });
-
-        filtrados.forEach(p => {
-            let colorPago = p.pago === 'Pagado' ? 'var(--success)' : 'var(--danger)';
-            let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
-            
-            // CONSTRUCCIÓN DE BOTONES DE ACCIÓN PARA EL REPORTE
-            let accionesHtml = '';
-            
-            if(rolActual === 'logistica' || rolActual === 'admin') {
-                accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
-            }
-            
-            // Botón "Volvió" solo si ya había salido
-            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
-                accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">🍕 Volvió</button>`;
-            }
-
-            tbody.innerHTML += `
-                <tr>
-                    <td style="white-space:nowrap;">${p.fecha.split('-').reverse().join('/')}</td>
-                    <td><b>${p.n_planilla}</b></td>
-                    <td>${p.motivo || '-'}</td>
-                    <td>${p.movil || '-'}</td>
-                    <td>${p.cliente}</td>
-                    <td>${p.chofer}</td>
-                    <td>${p.factura || '-'}</td>
-                    <td>${p.estado}</td>
-                    <td class="no-print" style="color:${colorPago}; font-weight:bold;">${txtPago}</td>
-                    <!-- COLUMNA NUEVA DE ACCIONES -->
-                    <td class="no-print" style="white-space:nowrap;">${accionesHtml}</td>
-                </tr>
-            `;
-        });
-    }
-</script>
-</body>
-</html>
+            const
