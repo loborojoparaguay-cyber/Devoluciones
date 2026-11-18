@@ -324,11 +324,6 @@
         if(tabId === 'reportes') filtrarReporte();
     }
 
-    function obtenerHora() {
-        const d = new Date();
-        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-    }
-    
     function obtenerFecha() {
         const d = new Date();
         const year = d.getFullYear();
@@ -337,13 +332,18 @@
         return `${year}-${month}-${day}`;
     }
 
-    // NORMALIZADOR DE FECHAS: Convierte cualquier formato a YYYY-MM-DD
+    function obtenerHora() {
+        const d = new Date();
+        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    }
+
+    // FORMATEO ROBUSTO DE FECHAS (Escudo anti-errores)
     function normalizarFecha(f) {
         if (!f) return '';
+        f = String(f);
         if (f.includes('T')) return f.split('T')[0];
         if (f.includes('/')) {
             let p = f.split('/');
-            // Si el año está al final (ej. 17/11/2026)
             if (p[2] && p[2].length === 4) {
                 return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
             }
@@ -353,6 +353,7 @@
 
     function limpiarHoraCruda(str) {
         if(!str) return '';
+        str = String(str);
         if(str.includes('T')) return str.split('T')[1].substring(0, 5);
         return str;
     }
@@ -398,7 +399,7 @@
             
             let dataServer = await resp.json();
             
-            // ESCUDO ANTICOLGADOS (Compatibilidad de versiones)
+            // ESCUDO DE COMPATIBILIDAD (Para que no se quede colgado si Google no se actualizó bien)
             let registrosCrudos = [];
             if (Array.isArray(dataServer)) {
                 registrosCrudos = dataServer; 
@@ -419,9 +420,7 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
-            if (!enSilencio) {
-                alert("⚠️ Error de conexión.\nSi la pantalla está en blanco, asegúrate de que en Google Apps Script configuraste:\n\n1. Ejecutar como: YO\n2. Quién tiene acceso: CUALQUIER PERSONA");
-            }
+            if (!enSilencio) alert("⚠️ Error de conexión: revisa si le diste permiso de 'Cualquier persona' a tu Apps Script.");
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -448,13 +447,14 @@
     }
 
     function renderizarHoy() {
-        const hoy = obtenerFecha();
+        const hoyLocal = obtenerFecha();
+        const hoyUTC = new Date().toISOString().split('T')[0]; // Fecha global por si guardaste anoche
         const contenedor = document.getElementById('contenedor_hoy');
         contenedor.innerHTML = '';
         
         const itemsMostrar = datosGlobales.filter(p => 
             (p.estado === 'En espera') || 
-            (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+            ((p.fecha === hoyLocal || p.fecha === hoyUTC) && p.estado !== 'No se llevó' && p.estado !== 'En espera')
         );
         
         if(itemsMostrar.length === 0) {
@@ -468,7 +468,7 @@
 
         listaFinal.forEach(p => {
             let badgeClass = p.estado === 'En espera' ? 'espera' : 'salida';
-            let fechaBonita = (p.fecha && typeof p.fecha === 'string') ? p.fecha.split('-').reverse().join('/') : '';
+            let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
             
             let html = `
                 <div class="card" ${p.estado !== 'En espera' ? 'style="opacity: 0.7;"' : ''}>
@@ -614,7 +614,7 @@
         document.getElementById('motivo').value = item.motivo || "";
         
         let selMovil = document.getElementById('movil');
-        if (item.movil && !Array.from(selMovil.options).some(opt => opt.value === item.movil)) {
+        if (item.movil && !Array.from(selMovil.options).some(opt => opt.value === String(item.movil))) {
             selMovil.innerHTML += `<option value="${item.movil}">${item.movil}</option>`;
         }
         selMovil.value = item.movil || "";
@@ -622,16 +622,17 @@
         document.getElementById('cliente').value = item.cliente;
         
         let selChofer = document.getElementById('chofer');
-        if (item.chofer && !Array.from(selChofer.options).some(opt => opt.value === item.chofer)) {
+        if (item.chofer && !Array.from(selChofer.options).some(opt => opt.value === String(item.chofer))) {
             selChofer.innerHTML += `<option value="${item.chofer}">${item.chofer}</option>`;
         }
-        selChofer.value = item.chofer;
+        selChofer.value = item.chofer || "";
         
         document.getElementById('factura').value = item.factura || "";
 
         document.getElementById('titulo_formulario').innerText = "✏️ Editando Pedido";
         document.getElementById('btn_guardar_nuevo').innerText = "💾 Guardar Cambios";
         document.getElementById('btn_guardar_nuevo').style.background = "var(--warning)";
+
         document.getElementById('tab_registro').click();
     }
 
@@ -742,20 +743,37 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
-    // IMPRESIÓN INTELIGENTE POR FECHA
+    // IMPRESIÓN INTELIGENTE POR FECHA / PLANILLA
     function imprimirTicketsCaja() {
         let fechaHoyLocal = obtenerFecha().split('-').reverse().join('/');
-        let opcion = prompt("🖨️ IMPRIMIR TICKETS\nIngrese la fecha que desea imprimir (Día/Mes/Año):", fechaHoyLocal);
+        let opcion = prompt("🖨️ IMPRIMIR TICKETS\nEscriba la FECHA (Ej. 17/11/2026)\nO escriba el NÚMERO DE PLANILLA:", fechaHoyLocal);
         
-        if (opcion === null) return; 
+        if (opcion === null || opcion.trim() === "") return; 
+        opcion = opcion.trim();
 
-        let fechaBuscada = normalizarFecha(opcion.trim());
-        if (!fechaBuscada) fechaBuscada = obtenerFecha(); 
+        let pedidosImprimir = [];
+        
+        // Verificamos si escribió una fecha con barras o guiones
+        if (opcion.includes('/') || opcion.includes('-')) {
+            let fechaBuscada = normalizarFecha(opcion);
+            let hoyLocal = obtenerFecha();
+            let hoyUTC = new Date().toISOString().split('T')[0];
 
-        let pedidosImprimir = datosGlobales.filter(p => p.fecha === fechaBuscada && p.estado !== 'No se llevó');
+            pedidosImprimir = datosGlobales.filter(p => {
+                if (p.estado === 'No se llevó') return false;
+                // Si busca la fecha de hoy, damos margen al error de la zona horaria (UTC o Local)
+                if (fechaBuscada === hoyLocal) {
+                    return p.fecha === hoyLocal || p.fecha === hoyUTC;
+                }
+                return p.fecha === fechaBuscada;
+            });
+        } else {
+            // Si escribió un texto normal, asume que es el número de planilla
+            pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.toLowerCase()) && p.estado !== 'No se llevó');
+        }
 
         if (pedidosImprimir.length === 0) { 
-            alert(`No hay pedidos activos para la fecha: ${opcion}`); 
+            alert(`No hay pedidos activos para: ${opcion}`); 
             return; 
         }
 
@@ -801,14 +819,18 @@
             let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
             
             let accionesHtml = '';
+            
+            // Botón Editar (Logística y Admin)
             if(rolActual === 'logistica' || rolActual === 'admin') {
                 accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
             }
+            
+            // Botón Volvió (Logística, Admin, Depósito - SOLO SI YA SALIÓ)
             if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
                 accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
             }
 
-            let fechaBonita = (p.fecha && typeof p.fecha === 'string') ? p.fecha.split('-').reverse().join('/') : '';
+            let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
 
             tbody.innerHTML += `
                 <tr>
