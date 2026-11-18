@@ -27,7 +27,7 @@
         .login-box h2 { margin-bottom: 20px; color: var(--accent); }
         .login-box input { margin-bottom: 15px; }
 
-        /* MODAL REASIGNAR (NUEVO) */
+        /* MODAL REASIGNAR */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 10000; }
         .modal-box { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
 
@@ -94,7 +94,6 @@
 </head>
 <body>
 
-<!-- PANTALLA DE LOGIN -->
 <div id="login_screen">
     <div class="login-box">
         <h2>🚚 Logística</h2>
@@ -105,7 +104,6 @@
     </div>
 </div>
 
-<!-- VENTANA MODAL PARA REASIGNAR CON OPCIONES KM -->
 <div id="modal_reasignar" class="modal-overlay">
     <div class="modal-box">
         <h3 style="color: var(--accent); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">🔄 Reasignar a Nueva Planilla</h3>
@@ -152,7 +150,6 @@
     
     <div id="loader">Sincronizando...</div>
 
-    <!-- INICIO -->
     <div id="inicio" class="tab-content active">
         <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
             <div class="card" style="flex: 1; min-width: 200px; text-align: center; border-bottom: 4px solid var(--accent);">
@@ -169,6 +166,7 @@
 
         <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin:0; color: var(--accent);">Movimientos Activos</h3>
+            
             <div style="display: flex; gap: 10px; align-items: center;">
                 <label style="margin:0; font-size:0.85em; color:var(--text-muted); font-weight:bold;">Imprimir por fecha:</label>
                 <input type="date" id="fecha_impresion_caja" style="padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main);">
@@ -178,13 +176,11 @@
         <div class="grid-pedidos" id="contenedor_hoy"></div>
     </div>
 
-    <!-- PENDIENTES -->
     <div id="pendientes" class="tab-content">
         <h3 style="margin-bottom: 15px; color: var(--danger); border-bottom: 1px solid var(--border); padding-bottom: 5px;">Mercadería No Llevada / Rechazada</h3>
         <div class="grid-pedidos" id="contenedor_pendientes"></div>
     </div>
 
-    <!-- NUEVO REGISTRO / EDICIÓN -->
     <div id="registro" class="tab-content">
         <h3 id="titulo_formulario" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; color: var(--accent);">Registrar Nuevo Ingreso</h3>
         <div id="aviso_bloqueo_registro" style="display:none; color: var(--danger); font-weight:bold; margin-bottom:15px;">
@@ -194,7 +190,6 @@
             <div class="form-group"><label>N° Planilla</label><input type="text" id="n_planilla" required></div>
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1"><label>Motivo</label><input type="text" id="motivo" placeholder="Ej. Reparto regular"></div>
-                
                 <div class="form-group" style="flex:1"><label>Móvil</label>
                     <select id="movil">
                         <option value="">Seleccionar...</option>
@@ -203,7 +198,6 @@
             </div>
             
             <div class="form-group"><label>Cliente</label><input type="text" id="cliente" required></div>
-            
             <div class="form-group"><label>Chofer</label>
                 <select id="chofer" required>
                     <option value="">Seleccionar Chofer...</option>
@@ -211,11 +205,21 @@
             </div>
             
             <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" placeholder="(Opcional)"></div>
+
+            <!-- NUEVO: SELECTOR DE LUGAR DE CARGA EN NUEVO REGISTRO -->
+            <div class="form-group">
+                <label>¿Dónde se carga? (Opcional)</label>
+                <select id="lugar_carga" style="border: 2px solid var(--accent); font-weight: bold;">
+                    <option value="OTRO">Carga Normal (Sin especificar)</option>
+                    <option value="KM 20">📍 CARGAR EN: KM 20</option>
+                    <option value="KM 17.5">📍 CARGAR EN: KM 17.5</option>
+                </select>
+            </div>
+
             <button type="submit" id="btn_guardar_nuevo" class="btn-primary" style="margin-top: 10px;">Registrar Ingreso a Planilla</button>
         </form>
     </div>
 
-    <!-- CAJA -->
     <div id="caja" class="tab-content">
         <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; color: var(--success);">Control de Pagos (Caja)</h3>
         <div class="form-group" style="margin-bottom: 20px;">
@@ -224,7 +228,6 @@
         <div class="grid-pedidos" id="contenedor_caja"></div>
     </div>
 
-    <!-- REPORTES -->
     <div id="reportes" class="tab-content">
         <div class="filters">
             <div class="form-group" style="flex: 2;">
@@ -273,9 +276,8 @@
     let usuarioActual = null;
     let rolActual = null;
     let idEdicionActiva = null; 
-    let idReasignarActivo = null; // Variable para saber qué pedido estamos reasignando en el Modal
+    let idReasignarActivo = null; 
 
-    // ⚠️ REEMPLAZA ESTO CON EL NUEVO ENLACE CON PERMISO A "CUALQUIER PERSONA" ⚠️
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -469,7 +471,7 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
-            if (!enSilencio) alert("⚠️ Error de conexión. Revisa los permisos de tu Google Apps Script.");
+            if (!enSilencio) alert("⚠️ Error de conexión. Revisa que Google Apps Script tenga acceso a 'Cualquier persona' (en Nueva implementación).");
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -515,7 +517,6 @@
             let badgeClass = esEnEspera(p) ? 'espera' : 'salida';
             let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
             
-            // NUEVO: CAJA AMARILLA GIGANTE SI TIENE KM 20 O KM 17.5
             let bannerUbicacion = "";
             if (p.observacion && String(p.observacion).includes("CARGAR EN")) {
                 bannerUbicacion = `
@@ -650,9 +651,6 @@
         });
     }
 
-    // =====================================
-    // LOGICA DEL MODAL DE REASIGNAR (NUEVO)
-    // =====================================
     function abrirModalReasignar(id) {
         idReasignarActivo = id;
         document.getElementById('reasignar_planilla').value = '';
@@ -674,7 +672,6 @@
             return;
         }
 
-        // Si elige KM 20 o KM 17.5, lo guardamos. Si es OTRO, se queda en blanco.
         let obsTexto = (lugar !== "OTRO") ? `📍 CARGAR EN: ${lugar}` : "";
 
         let item = datosGlobales.find(x => x.id === idReasignarActivo);
@@ -736,6 +733,16 @@
         
         document.getElementById('factura').value = item.factura || "";
 
+        // Preseleccionar lugar de carga si ya tenía KM 20 o KM 17.5
+        let selLugar = document.getElementById('lugar_carga');
+        if (item.observacion && String(item.observacion).includes("KM 20")) {
+            selLugar.value = "KM 20";
+        } else if (item.observacion && String(item.observacion).includes("KM 17.5")) {
+            selLugar.value = "KM 17.5";
+        } else {
+            selLugar.value = "OTRO";
+        }
+
         document.getElementById('titulo_formulario').innerText = "✏️ Editando Pedido";
         document.getElementById('btn_guardar_nuevo').innerText = "💾 Guardar Cambios";
         document.getElementById('btn_guardar_nuevo').style.background = "var(--warning)";
@@ -748,13 +755,17 @@
             alert("No tienes permisos para registrar o editar pedidos."); return;
         }
 
+        let lugar = document.getElementById('lugar_carga').value;
+        let obsTexto = (lugar && lugar !== "OTRO") ? `📍 CARGAR EN: ${lugar}` : "";
+
         const dataForm = {
             n_planilla: document.getElementById('n_planilla').value,
             motivo: document.getElementById('motivo').value,
             movil: document.getElementById('movil').value,
             cliente: document.getElementById('cliente').value,
             chofer: document.getElementById('chofer').value,
-            factura: document.getElementById('factura').value || "Sin Factura"
+            factura: document.getElementById('factura').value || "Sin Factura",
+            observacion: obsTexto
         };
 
         if (idEdicionActiva) {
@@ -780,7 +791,6 @@
             dataForm.fecha = obtenerFecha();
             dataForm.hora_agregado = obtenerHora();
             dataForm.estado = "En espera";
-            dataForm.observacion = "";
 
             datosGlobales.push({...dataForm, hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
             this.reset();
