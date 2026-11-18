@@ -135,9 +135,15 @@
             </div>
         </div>
 
-        <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+        <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin:0; color: var(--accent);">Movimientos Activos</h3>
-            <button class="btn-primary" style="width: auto; padding: 8px 12px; font-size: 0.9em;" id="btn_imprimir_caja" onclick="imprimirTicketsCaja()">🖨️ Imprimir Tickets Caja</button>
+            
+            <!-- NUEVO: CALENDARIO PARA IMPRIMIR -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="margin:0; font-size:0.85em; color:var(--text-muted); font-weight:bold;">Imprimir por fecha:</label>
+                <input type="date" id="fecha_impresion_caja" style="padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main);">
+                <button class="btn-primary" style="width: auto; padding: 6px 12px; font-size: 0.85em;" onclick="imprimirTicketsCaja()">🖨️ Imprimir</button>
+            </div>
         </div>
         <div class="grid-pedidos" id="contenedor_hoy"></div>
     </div>
@@ -226,10 +232,11 @@
 </div>
 
 <script>
+    // FONDOS Y USUARIOS (Caja ahora es un Rosa más claro: #fce4ec)
     const CONFIG_USUARIOS = {
         "deposito":     { pass: "1234",         rol: "deposito",  nombre: "Depósito",      bgColor: "#e1f5fe" }, 
         "logistica":    { pass: "4321",         rol: "logistica", nombre: "Logística",     bgColor: "#fff9c4" }, 
-        "caja":         { pass: "0000",         rol: "caja",      nombre: "Caja",          bgColor: "#ff80ab" }, 
+        "caja":         { pass: "0000",         rol: "caja",      nombre: "Caja",          bgColor: "#fce4ec" }, 
         "devoluciones": { pass: "devoluciones", rol: "visor",     nombre: "Devoluciones",  bgColor: "#f3e5f5" }, 
         "admin":        { pass: "adminl",       rol: "admin",     nombre: "Administrador", bgColor: "#e0f2f1" }  
     };
@@ -238,12 +245,23 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
-    // TU ENLACE INCORPORADO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
 
+    // ==========================================
+    // HERRAMIENTAS FLEXIBLES (Filtros tolerantes a errores del Excel)
+    // ==========================================
+    const esEnEspera = (p) => p.estado && p.estado.toLowerCase().includes('espera');
+    const esNoLlevo = (p) => p.estado && p.estado.toLowerCase().includes('llev');
+    const esEntregado = (p) => p.estado && p.estado.toLowerCase().includes('carg');
+    const esPagado = (p) => p.pago && p.pago.toLowerCase().includes('pagado');
+
+
     window.onload = function() {
+        // Colocamos la fecha de hoy por defecto en el calendario de imprimir
+        document.getElementById('fecha_impresion_caja').value = obtenerFecha();
+
         const sesionGuardada = localStorage.getItem("sesion_logistica");
         if(sesionGuardada && CONFIG_USUARIOS[sesionGuardada]) {
             ingresarAlSistema(sesionGuardada);
@@ -337,25 +355,16 @@
         return `${year}-${month}-${day}`;
     }
 
-    // NORMALIZADOR DE FECHAS A YYYY-MM-DD
     function normalizarFecha(f) {
         if (!f) return '';
         f = String(f).trim();
         if (f.includes('T')) return f.split('T')[0];
         
-        // Convertir diagonales a guiones
         f = f.replace(/\//g, '-');
-        
         let p = f.split('-');
         if (p.length === 3) {
-            // Si viene como DD-MM-YYYY
-            if (p[2].length === 4) {
-                return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
-            }
-            // Si viene como YYYY-MM-DD
-            else if (p[0].length === 4) {
-                return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
-            }
+            if (p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+            if (p[0].length === 4) return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
         }
         return f;
     }
@@ -369,8 +378,9 @@
 
     function calcularEstadisticas() {
         const hoy = new Date();
-        const mesActual = hoy.getMonth();
-        const añoActual = hoy.getFullYear();
+        const mesActual = String(hoy.getMonth() + 1).padStart(2, '0');
+        const añoActual = String(hoy.getFullYear());
+        const prefijoMes = `${añoActual}-${mesActual}`;
         
         const diaSemana = hoy.getDay() || 7; 
         const inicioSemana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - diaSemana + 1);
@@ -381,20 +391,20 @@
         datosGlobales.forEach(p => {
             if(!p.fecha) return;
             
-            let pParts = p.fecha.split('-');
-            if(pParts.length !== 3) return;
-            
-            let pYear = parseInt(pParts[0]);
-            let pMonth = parseInt(pParts[1]) - 1; 
-            let pDate = new Date(pYear, pMonth, parseInt(pParts[2]));
-
-            if (pYear === añoActual && pMonth === mesActual) {
+            // Calculo Mes Seguro
+            if (p.fecha.startsWith(prefijoMes)) {
                 totalMes++;
-                if (p.estado === 'Se cargó') entregadosMes++;
+                if (esEntregado(p)) entregadosMes++;
             }
-            if (pDate >= inicioSemana) {
-                totalSemana++;
-                if (p.estado === 'Se cargó') entregadosSemana++;
+
+            // Calculo Semana
+            let pParts = p.fecha.split('-');
+            if (pParts.length === 3) {
+                let pDate = new Date(pParts[0], pParts[1] - 1, pParts[2]);
+                if (pDate >= inicioSemana) {
+                    totalSemana++;
+                    if (esEntregado(p)) entregadosSemana++;
+                }
             }
         });
 
@@ -412,7 +422,6 @@
         try {
             const urlFresca = API_URL + "?t=" + new Date().getTime();
             const resp = await fetch(urlFresca, { redirect: 'follow' });
-            
             let dataServer = await resp.json();
             
             let registrosCrudos = [];
@@ -423,12 +432,9 @@
                 llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
             }
             
-            // LA ASPIRADORA: ESTO ARREGLA LOS ESPACIOS EN BLANCO FANTASMAS
             datosGlobales = registrosCrudos.map(p => {
                 let limpio = {};
-                for (let k in p) {
-                    limpio[k] = (typeof p[k] === 'string') ? p[k].trim() : p[k];
-                }
+                for (let k in p) { limpio[k] = (typeof p[k] === 'string') ? p[k].trim() : p[k]; }
                 limpio.fecha = normalizarFecha(limpio.fecha);
                 return limpio;
             });
@@ -440,7 +446,7 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
-            if (!enSilencio) alert("⚠️ Error de conexión: revisa si le diste permiso de 'Cualquier persona' a tu Apps Script.");
+            if (!enSilencio) alert("⚠️ Error de conexión. Revisa los permisos de tu Google Apps Script.");
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -455,12 +461,8 @@
         selChofer.innerHTML = '<option value="">Seleccionar Chofer...</option>';
         selMovil.innerHTML = '<option value="">Seleccionar...</option>';
 
-        listaChoferes.forEach(c => {
-            if(c) selChofer.innerHTML += `<option value="${c}">${String(c).trim()}</option>`;
-        });
-        listaMoviles.forEach(m => {
-            if(m) selMovil.innerHTML += `<option value="${m}">${String(m).trim()}</option>`;
-        });
+        listaChoferes.forEach(c => { if(c) selChofer.innerHTML += `<option value="${c}">${String(c).trim()}</option>`; });
+        listaMoviles.forEach(m => { if(m) selMovil.innerHTML += `<option value="${m}">${String(m).trim()}</option>`; });
 
         selChofer.value = valChofer;
         selMovil.value = valMovil;
@@ -473,8 +475,8 @@
         contenedor.innerHTML = '';
         
         const itemsMostrar = datosGlobales.filter(p => 
-            (p.estado === 'En espera') || 
-            ((p.fecha === hoyLocal || p.fecha === hoyUTC) && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+            esEnEspera(p) || 
+            ((p.fecha === hoyLocal || p.fecha === hoyUTC) && !esNoLlevo(p) && !esEnEspera(p))
         );
         
         if(itemsMostrar.length === 0) {
@@ -482,18 +484,18 @@
             return;
         }
 
-        const pendientes = itemsMostrar.filter(p => p.estado === 'En espera').reverse();
-        const procesados = itemsMostrar.filter(p => p.estado !== 'En espera').reverse();
+        const pendientes = itemsMostrar.filter(p => esEnEspera(p)).reverse();
+        const procesados = itemsMostrar.filter(p => !esEnEspera(p)).reverse();
         const listaFinal = [...pendientes, ...procesados];
 
         listaFinal.forEach(p => {
-            let badgeClass = p.estado === 'En espera' ? 'espera' : 'salida';
+            let badgeClass = esEnEspera(p) ? 'espera' : 'salida';
             let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
             
             let html = `
-                <div class="card" ${p.estado !== 'En espera' ? 'style="opacity: 0.7;"' : ''}>
+                <div class="card" ${!esEnEspera(p) ? 'style="opacity: 0.7;"' : ''}>
                     <span class="badge ${badgeClass}">${p.estado}</span>
-                    ${p.pago === 'Pagado' ? '<span class="badge salida" style="float:right;">Pagado</span>' : ''}
+                    ${esPagado(p) ? '<span class="badge salida" style="float:right;">Pagado</span>' : ''}
                     <h3>Planilla: ${p.n_planilla}</h3>
                     <p><strong>Móvil / Motivo:</strong> ${p.movil || '-'} / ${p.motivo || '-'}</p>
                     <p><strong>Chofer:</strong> ${p.chofer}</p>
@@ -503,7 +505,7 @@
                     ${p.hora_salida ? `<p>✅ <strong>Salida:</strong> ${limpiarHoraCruda(p.hora_salida)}</p>` : ''}
             `;
             
-            if(p.estado === 'En espera' && (rolActual === 'deposito' || rolActual === 'admin')) {
+            if(esEnEspera(p) && (rolActual === 'deposito' || rolActual === 'admin')) {
                 html += `
                     <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button class="btn-success" style="width:100%; margin-bottom:5px;" onclick="marcarSalida('${p.id}', 'Se cargó')">✔️ Confirmar que se cargó y salió</button>
@@ -532,7 +534,7 @@
         const txtFiltro = document.getElementById('filtro_caja') ? document.getElementById('filtro_caja').value.toLowerCase() : '';
         contenedor.innerHTML = '';
         
-        let itemsCaja = datosGlobales.filter(p => p.estado !== 'No se llevó' && (p.fecha === hoy || p.pago !== 'Pagado'));
+        let itemsCaja = datosGlobales.filter(p => !esNoLlevo(p) && (p.fecha === hoy || !esPagado(p)));
         
         if (txtFiltro) {
             itemsCaja = itemsCaja.filter(p => 
@@ -548,17 +550,17 @@
             return;
         }
 
-        const pendientes = itemsCaja.filter(p => p.pago !== 'Pagado').reverse();
-        const pagados = itemsCaja.filter(p => p.pago === 'Pagado').reverse();
+        const pendientes = itemsCaja.filter(p => !esPagado(p)).reverse();
+        const pagados = itemsCaja.filter(p => esPagado(p)).reverse();
         const listaFinal = [...pendientes, ...pagados];
 
         listaFinal.forEach(p => {
-            let esPagado = (p.pago === 'Pagado');
-            let badgeClass = esPagado ? 'salida' : 'espera';
-            let txtPago = esPagado ? 'Pagado' : 'Pago Pendiente';
+            let pag = esPagado(p);
+            let badgeClass = pag ? 'salida' : 'espera';
+            let txtPago = pag ? 'Pagado' : 'Pago Pendiente';
 
             let html = `
-                <div class="card" ${esPagado ? 'style="opacity: 0.6;"' : ''}>
+                <div class="card" ${pag ? 'style="opacity: 0.6;"' : ''}>
                     <span class="badge ${badgeClass}">${txtPago}</span>
                     <h3>Planilla: ${p.n_planilla}</h3>
                     <p><strong>Cliente:</strong> ${p.cliente}</p>
@@ -567,13 +569,13 @@
                     <p><strong>Estado Logística:</strong> ${p.estado}</p>
             `;
             
-            if(!esPagado && (rolActual === 'caja' || rolActual === 'admin')) {
+            if(!pag && (rolActual === 'caja' || rolActual === 'admin')) {
                 html += `
                     <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button class="btn-success" style="width:100%; background:#4caf50;" onclick="marcarPago('${p.id}')">💰 Confirmar Pago</button>
                     </div>
                 `;
-            } else if (esPagado) {
+            } else if (pag) {
                 html += `<p style="margin-top:10px; color:var(--success); font-weight:bold;">✅ Pago Confirmado</p>`;
             }
             html += `</div>`;
@@ -584,7 +586,7 @@
     function renderizarPendientes() {
         const contenedor = document.getElementById('contenedor_pendientes');
         contenedor.innerHTML = '';
-        const pendientes = datosGlobales.filter(p => p.estado === 'No se llevó').reverse();
+        const pendientes = datosGlobales.filter(p => esNoLlevo(p)).reverse();
         
         if(pendientes.length === 0) {
             contenedor.innerHTML = '<p style="color:var(--text-muted); grid-column: 1/-1;">No hay pedidos pendientes de reenvío.</p>';
@@ -652,7 +654,6 @@
         document.getElementById('titulo_formulario').innerText = "✏️ Editando Pedido";
         document.getElementById('btn_guardar_nuevo').innerText = "💾 Guardar Cambios";
         document.getElementById('btn_guardar_nuevo').style.background = "var(--warning)";
-
         document.getElementById('tab_registro').click();
     }
 
@@ -677,7 +678,6 @@
             
             let item = datosGlobales.find(x => x.id === idEdicionActiva);
             Object.assign(item, dataForm);
-            
             alert("✅ Cambios guardados correctamente.");
             
             idEdicionActiva = null;
@@ -687,18 +687,17 @@
             
             this.reset();
             document.getElementById('tab_inicio').click();
-            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
-            
         } else {
             dataForm.action = "add";
             dataForm.id = "ID-" + Date.now();
             dataForm.fecha = obtenerFecha();
             dataForm.hora_agregado = obtenerHora();
+            dataForm.estado = "En espera";
             dataForm.observacion = "";
 
-            datosGlobales.push({...dataForm, estado: "En espera", hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
+            datosGlobales.push({...dataForm, hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
             this.reset();
             alert("✅ Pedido creado exitosamente.");
             
@@ -763,33 +762,19 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
+    // AHORA LEE LA FECHA DESDE EL CALENDARIO DE LA PANTALLA
     function imprimirTicketsCaja() {
-        let fechaHoyLocal = obtenerFecha().split('-').reverse().join('/');
-        let opcion = prompt("🖨️ IMPRIMIR TICKETS\nEscriba la FECHA (Ej. 17/11/2026)\nO escriba el NÚMERO DE PLANILLA:", fechaHoyLocal);
+        let fechaBuscada = document.getElementById('fecha_impresion_caja').value;
         
-        if (opcion === null || opcion.trim() === "") return; 
-        opcion = opcion.trim();
-
-        let pedidosImprimir = [];
-        
-        if (opcion.includes('/') || opcion.includes('-')) {
-            let fechaBuscada = normalizarFecha(opcion);
-            let hoyLocal = obtenerFecha();
-            let hoyUTC = new Date().toISOString().split('T')[0];
-
-            pedidosImprimir = datosGlobales.filter(p => {
-                if (p.estado === 'No se llevó') return false;
-                if (fechaBuscada === hoyLocal) {
-                    return p.fecha === hoyLocal || p.fecha === hoyUTC;
-                }
-                return p.fecha === fechaBuscada;
-            });
-        } else {
-            pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.toLowerCase()) && p.estado !== 'No se llevó');
+        if (!fechaBuscada) { 
+            alert("Por favor, seleccione una fecha en el calendario para imprimir."); 
+            return; 
         }
 
+        let pedidosImprimir = datosGlobales.filter(p => p.fecha === fechaBuscada && !esNoLlevo(p));
+
         if (pedidosImprimir.length === 0) { 
-            alert(`No hay pedidos activos para: ${opcion}`); 
+            alert(`No hay pedidos activos para la fecha seleccionada.`); 
             return; 
         }
 
@@ -831,16 +816,14 @@
         });
 
         filtrados.forEach(p => {
-            let colorPago = p.pago === 'Pagado' ? 'var(--success)' : 'var(--danger)';
-            let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
+            let colorPago = esPagado(p) ? 'var(--success)' : 'var(--danger)';
+            let txtPago = esPagado(p) ? 'Pagado' : 'Pendiente';
             
             let accionesHtml = '';
-            
             if(rolActual === 'logistica' || rolActual === 'admin') {
                 accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
             }
-            
-            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
+            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && esEntregado(p)) {
                 accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
             }
 
