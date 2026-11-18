@@ -214,6 +214,8 @@
                         <th>Factura</th>
                         <th>Estado</th>
                         <th class="no-print">Est. Pago</th> 
+                        <!-- NUEVA COLUMNA DE ACCIONES -->
+                        <th class="no-print">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tabla_reporte"></tbody>
@@ -238,7 +240,7 @@
     let idEdicionActiva = null; 
 
     // TU ENLACE INCORPORADO
-    const API_URL = "https://script.google.com/macros/s/AKfycbwfvwhgo5BT--Nb1VpZk9Vxvv_Uso1vgsOxPRy79FN8-Nw_0ZTr9adEtlMMe7kHyg7jWA/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
 
@@ -589,7 +591,6 @@
         document.getElementById('n_planilla').value = item.n_planilla;
         document.getElementById('motivo').value = item.motivo || "";
         
-        // Verifica si la opción existe, si no, la agrega temporalmente para poder verla
         let selMovil = document.getElementById('movil');
         if (item.movil && !Array.from(selMovil.options).some(opt => opt.value === item.movil)) {
             selMovil.innerHTML += `<option value="${item.movil}">${item.movil}</option>`;
@@ -697,7 +698,7 @@
         let statusEntregado = "Pendiente";
         
         if (estado === "No se llevó") {
-            obs = prompt("Indica el motivo por el cual no se llevó la mercadería:");
+            obs = prompt("Indica el motivo por el cual no se llevó / volvió la mercadería:");
             if (obs === null) return; 
             statusEntregado = "No";
         } else if (estado === "Se cargó") {
@@ -714,22 +715,40 @@
             item.estado = estado; item.hora_salida = dataUpdate.hora_salida;
             item.observacion = obs; item.entregado = statusEntregado;
             calcularEstadisticas();
-            renderizarHoy(); renderizarPendientes(); renderizarCaja();
+            renderizarHoy(); renderizarPendientes(); renderizarCaja(); filtrarReporte();
         }
         fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
+    // NUEVA LÓGICA DE IMPRESIÓN INTELIGENTE
     function imprimirTicketsCaja() {
-        const hoy = obtenerFecha();
-        const pedidosHoy = datosGlobales.filter(p => 
-            (p.estado === 'En espera') || 
-            (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
-        );
-        if (pedidosHoy.length === 0) { alert("No hay pedidos activos ni en espera para imprimir."); return; }
+        let opcion = prompt("Opciones de impresión:\n1. Deje en blanco y dele a 'Aceptar' para imprimir TODO lo de hoy.\n2. Escriba un N° de Planilla para imprimir solo esa planilla específica:");
+        
+        if (opcion === null) return; // Si el usuario cancela
+
+        let pedidosImprimir = [];
+        
+        if (opcion.trim() !== "") {
+            // Si escribió algo, buscamos esa planilla en específico (sin importar fecha) excluyendo los rechazados
+            pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.trim().toLowerCase()) && p.estado !== 'No se llevó');
+        } else {
+            // Si dejó en blanco, imprimimos lo de hoy + en espera
+            const hoy = obtenerFecha();
+            pedidosImprimir = datosGlobales.filter(p => 
+                (p.estado === 'En espera') || 
+                (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+            );
+        }
+
+        if (pedidosImprimir.length === 0) { 
+            alert("No hay pedidos que coincidan para imprimir."); 
+            return; 
+        }
+
         const contenedor = document.getElementById('print_tickets_container');
         let html = '<div class="ticket-grid">';
-        pedidosHoy.forEach(p => {
+        pedidosImprimir.forEach(p => {
             html += `
                 <div class="ticket">
                     <h4>🎫 ADJUNTO CON ESTA PLANILLA</h4>
@@ -768,6 +787,18 @@
             let colorPago = p.pago === 'Pagado' ? 'var(--success)' : 'var(--danger)';
             let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
             
+            // CONSTRUCCIÓN DE BOTONES DE ACCIÓN PARA EL REPORTE
+            let accionesHtml = '';
+            
+            if(rolActual === 'logistica' || rolActual === 'admin') {
+                accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
+            }
+            
+            // Botón "Volvió" solo si ya había salido
+            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
+                accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">🍕 Volvió</button>`;
+            }
+
             tbody.innerHTML += `
                 <tr>
                     <td style="white-space:nowrap;">${p.fecha.split('-').reverse().join('/')}</td>
@@ -779,6 +810,8 @@
                     <td>${p.factura || '-'}</td>
                     <td>${p.estado}</td>
                     <td class="no-print" style="color:${colorPago}; font-weight:bold;">${txtPago}</td>
+                    <!-- COLUMNA NUEVA DE ACCIONES -->
+                    <td class="no-print" style="white-space:nowrap;">${accionesHtml}</td>
                 </tr>
             `;
         });
