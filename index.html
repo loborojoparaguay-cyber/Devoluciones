@@ -238,7 +238,6 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
-    // TU ENLACE INCORPORADO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -324,6 +323,11 @@
         if(tabId === 'reportes') filtrarReporte();
     }
 
+    function obtenerHora() {
+        const d = new Date();
+        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    }
+    
     function obtenerFecha() {
         const d = new Date();
         const year = d.getFullYear();
@@ -332,12 +336,6 @@
         return `${year}-${month}-${day}`;
     }
 
-    function obtenerHora() {
-        const d = new Date();
-        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-    }
-
-    // FORMATEO ROBUSTO DE FECHAS (Escudo anti-errores)
     function normalizarFecha(f) {
         if (!f) return '';
         f = String(f);
@@ -399,7 +397,6 @@
             
             let dataServer = await resp.json();
             
-            // ESCUDO DE COMPATIBILIDAD (Para que no se quede colgado si Google no se actualizó bien)
             let registrosCrudos = [];
             if (Array.isArray(dataServer)) {
                 registrosCrudos = dataServer; 
@@ -448,7 +445,7 @@
 
     function renderizarHoy() {
         const hoyLocal = obtenerFecha();
-        const hoyUTC = new Date().toISOString().split('T')[0]; // Fecha global por si guardaste anoche
+        const hoyUTC = new Date().toISOString().split('T')[0]; 
         const contenedor = document.getElementById('contenedor_hoy');
         contenedor.innerHTML = '';
         
@@ -753,7 +750,6 @@
 
         let pedidosImprimir = [];
         
-        // Verificamos si escribió una fecha con barras o guiones
         if (opcion.includes('/') || opcion.includes('-')) {
             let fechaBuscada = normalizarFecha(opcion);
             let hoyLocal = obtenerFecha();
@@ -761,14 +757,12 @@
 
             pedidosImprimir = datosGlobales.filter(p => {
                 if (p.estado === 'No se llevó') return false;
-                // Si busca la fecha de hoy, damos margen al error de la zona horaria (UTC o Local)
                 if (fechaBuscada === hoyLocal) {
                     return p.fecha === hoyLocal || p.fecha === hoyUTC;
                 }
                 return p.fecha === fechaBuscada;
             });
         } else {
-            // Si escribió un texto normal, asume que es el número de planilla
             pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.toLowerCase()) && p.estado !== 'No se llevó');
         }
 
@@ -820,12 +814,10 @@
             
             let accionesHtml = '';
             
-            // Botón Editar (Logística y Admin)
             if(rolActual === 'logistica' || rolActual === 'admin') {
                 accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
             }
             
-            // Botón Volvió (Logística, Admin, Depósito - SOLO SI YA SALIÓ)
             if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
                 accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
             }
