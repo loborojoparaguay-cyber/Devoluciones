@@ -238,6 +238,7 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
+    // TU ENLACE INCORPORADO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -336,14 +337,24 @@
         return `${year}-${month}-${day}`;
     }
 
+    // NORMALIZADOR DE FECHAS A YYYY-MM-DD
     function normalizarFecha(f) {
         if (!f) return '';
-        f = String(f);
+        f = String(f).trim();
         if (f.includes('T')) return f.split('T')[0];
-        if (f.includes('/')) {
-            let p = f.split('/');
-            if (p[2] && p[2].length === 4) {
+        
+        // Convertir diagonales a guiones
+        f = f.replace(/\//g, '-');
+        
+        let p = f.split('-');
+        if (p.length === 3) {
+            // Si viene como DD-MM-YYYY
+            if (p[2].length === 4) {
                 return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+            }
+            // Si viene como YYYY-MM-DD
+            else if (p[0].length === 4) {
+                return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
             }
         }
         return f;
@@ -358,23 +369,30 @@
 
     function calcularEstadisticas() {
         const hoy = new Date();
-        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+        const mesActual = hoy.getMonth();
+        const añoActual = hoy.getFullYear();
         
         const diaSemana = hoy.getDay() || 7; 
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - diaSemana + 1);
-        const inicioSemanaStr = inicioSemana.toISOString().split('T')[0];
+        const inicioSemana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - diaSemana + 1);
 
         let totalSemana = 0, entregadosSemana = 0;
         let totalMes = 0, entregadosMes = 0;
 
         datosGlobales.forEach(p => {
             if(!p.fecha) return;
-            if (p.fecha >= inicioMes) {
+            
+            let pParts = p.fecha.split('-');
+            if(pParts.length !== 3) return;
+            
+            let pYear = parseInt(pParts[0]);
+            let pMonth = parseInt(pParts[1]) - 1; 
+            let pDate = new Date(pYear, pMonth, parseInt(pParts[2]));
+
+            if (pYear === añoActual && pMonth === mesActual) {
                 totalMes++;
                 if (p.estado === 'Se cargó') entregadosMes++;
             }
-            if (p.fecha >= inicioSemanaStr) {
+            if (pDate >= inicioSemana) {
                 totalSemana++;
                 if (p.estado === 'Se cargó') entregadosSemana++;
             }
@@ -405,9 +423,14 @@
                 llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
             }
             
+            // LA ASPIRADORA: ESTO ARREGLA LOS ESPACIOS EN BLANCO FANTASMAS
             datosGlobales = registrosCrudos.map(p => {
-                p.fecha = normalizarFecha(p.fecha);
-                return p;
+                let limpio = {};
+                for (let k in p) {
+                    limpio[k] = (typeof p[k] === 'string') ? p[k].trim() : p[k];
+                }
+                limpio.fecha = normalizarFecha(limpio.fecha);
+                return limpio;
             });
 
             calcularEstadisticas();
@@ -433,10 +456,10 @@
         selMovil.innerHTML = '<option value="">Seleccionar...</option>';
 
         listaChoferes.forEach(c => {
-            if(c) selChofer.innerHTML += `<option value="${c}">${c}</option>`;
+            if(c) selChofer.innerHTML += `<option value="${c}">${String(c).trim()}</option>`;
         });
         listaMoviles.forEach(m => {
-            if(m) selMovil.innerHTML += `<option value="${m}">${m}</option>`;
+            if(m) selMovil.innerHTML += `<option value="${m}">${String(m).trim()}</option>`;
         });
 
         selChofer.value = valChofer;
@@ -740,7 +763,6 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
-    // IMPRESIÓN INTELIGENTE POR FECHA / PLANILLA
     function imprimirTicketsCaja() {
         let fechaHoyLocal = obtenerFecha().split('-').reverse().join('/');
         let opcion = prompt("🖨️ IMPRIMIR TICKETS\nEscriba la FECHA (Ej. 17/11/2026)\nO escriba el NÚMERO DE PLANILLA:", fechaHoyLocal);
