@@ -3,188 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Envíos y Devoluciones</title>
+    <title>Logística - App Sistema</title>
     <style>
         :root {
-            --bg-dark: #121212; --card-bg: #1e1e1e; --text-main: #e0e0e0;
-            --text-muted: #a0a0a0; --accent: #007acc; --accent-hover: #005f9e;
-            --border: #333; --danger: #cf6679; --success: #4caf50; --warning: #ffb300;
+            --bg-dark: #eef2f5;      
+            --card-bg: #ffffff;      
+            --text-main: #2c3e50;    
+            --text-muted: #596a7a;   
+            --accent: #007acc;       
+            --accent-hover: #005f9e;
+            --border: #cfd8dc;       
+            --danger: #e53935;       
+            --success: #2e7d32;      
+            --warning: #f57c00;      
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; }
         
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 12px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .tab-btn.active, .tab-btn:hover { background: var(--accent); border-color: var(--accent); }
-        .tab-content { display: none; background: var(--card-bg); padding: 20px; border-radius: 8px; }
+        body { background-color: var(--bg-dark); color: var(--text-main); padding: 15px; transition: background-color 0.4s ease; }
+        
+        /* LOGIN */
+        #login_screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-box { background: var(--card-bg); padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 350px; text-align: center; }
+        .login-box h2 { margin-bottom: 20px; color: var(--accent); }
+        .login-box input { margin-bottom: 15px; }
+
+        /* APP */
+        #app_container { display: none; max-width: 1000px; margin: 0 auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .user-info { font-size: 0.9em; font-weight: bold; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .btn-logout { background: var(--danger); padding: 5px 10px; font-size: 0.8em; border-radius: 4px; color: white; border: none; cursor: pointer; }
+        
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { flex: 1; min-width: 80px; padding: 10px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; transition: 0.2s; text-align: center; }
+        .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .tab-content { display: none; background: rgba(255,255,255,0.85); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .tab-content.active { display: block; }
 
-        /* Tarjetas de Inicio */
         .grid-pedidos { display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-        .card { background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 15px; position: relative; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 15px; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.08); }
         .card h3 { color: var(--accent); margin-bottom: 10px; }
         .card p { font-size: 0.9em; margin-bottom: 5px; color: var(--text-muted); }
         .card strong { color: var(--text-main); }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; }
-        .badge.espera { background: var(--warning); color: #000; }
-        .badge.salida { background: var(--success); color: #fff; }
-        .badge.nolleva { background: var(--danger); color: #fff; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; color: #fff; }
+        .badge.espera { background: var(--warning); }
+        .badge.salida { background: var(--success); }
+        .badge.nolleva { background: var(--danger); }
         
-        /* Formularios */
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: var(--text-muted); }
-        input, textarea, select { width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: var(--text-muted); font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 10px; background: #ffffff; border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; font-size: 0.95em; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        
         button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
         .btn-primary { background: var(--accent); width: 100%; }
-        .btn-primary:hover { background: var(--accent-hover); }
         .btn-success { background: var(--success); }
-        .btn-danger { background: var(--danger); margin-top: 10px; }
+        .btn-danger { background: var(--danger); }
         
-        /* Reportes */
         .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .filters .form-group { flex: 1; min-width: 150px; margin-bottom: 0; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 15px; }
-        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
-        th { background: var(--bg-dark); color: var(--accent); }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; background: #fff; }
+        th { background: #f0f0f0; color: var(--accent); }
         
         #loader { text-align: center; padding: 20px; display: none; color: var(--accent); font-weight: bold; }
-        
+        #print_tickets_container { display: none; }
+
         @media print {
-            body { background: white; color: black; padding: 0; }
-            .header button, .tabs, .filters button, #loader { display: none !important; }
-            .tab-content { padding: 0; background: transparent; }
-            th { background: #eee; color: black; }
-            th, td { border: 1px solid black; }
+            body { background: white !important; color: black; padding: 0; }
+            .header, .tabs, .filters button, #loader, .btn-logout, #login_screen { display: none !important; }
+            body:not(.imprimiendo-tickets) .tab-content { padding: 0; background: transparent; box-shadow: none; }
+            body:not(.imprimiendo-tickets) th { background: #eee; color: black; }
+            body:not(.imprimiendo-tickets) th, body:not(.imprimiendo-tickets) td { border: 1px solid black; }
+            body:not(.imprimiendo-tickets) #inicio, body:not(.imprimiendo-tickets) #pendientes, body:not(.imprimiendo-tickets) #registro, body:not(.imprimiendo-tickets) #caja { display: none !important; }
+
+            body.imprimiendo-tickets #app_container > *:not(#print_tickets_container) { display: none !important; }
+            body.imprimiendo-tickets #print_tickets_container { display: block !important; }
+            
+            .ticket-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; width: 100%; margin-bottom: 30px; }
+            .ticket { border: 2px dashed #000; padding: 25px; font-family: 'Courier New', Courier, monospace; font-size: 14px; page-break-inside: avoid; }
+            .ticket h4 { text-align: center; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #000; padding-bottom: 10px; font-size: 16px;}
+            .ticket p { margin: 8px 0; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div id="login_screen">
+    <div class="login-box">
+        <h2>🚚 Logística</h2>
+        <input type="text" id="login_user" placeholder="Usuario" autocomplete="off">
+        <input type="password" id="login_pass" placeholder="Contraseña">
+        <button class="btn-primary" onclick="iniciarSesion()">Ingresar</button>
+        <p id="login_error" style="color: red; display: none; margin-top: 10px; font-size: 0.9em;">Usuario o contraseña incorrectos</p>
+    </div>
+</div>
+
+<div id="app_container">
     <div class="header">
         <h2>🚚 Logística y Devoluciones</h2>
-        <button class="btn-primary" style="width: auto;" onclick="cargarDatos()">🔄 Sincronizar</button>
+        <div class="user-info">
+            <span id="display_user"></span>
+            <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
+            <button class="btn-primary" style="width: auto; padding: 5px 10px; font-size: 0.8em;" onclick="cargarDatos(false)">🔄 Sincronizar</button>
+        </div>
     </div>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('inicio')">Inicio (Hoy)</button>
-        <button class="tab-btn" onclick="switchTab('registro')">+ Nuevo Pedido</button>
-        <button class="tab-btn" onclick="switchTab('reportes')">Reportes</button>
+    <div class="tabs" id="main_tabs">
+        <button class="tab-btn active" id="tab_inicio" onclick="switchTab('inicio')">Inicio</button>
+        <button class="tab-btn" id="tab_pendientes" onclick="switchTab('pendientes')" style="border-bottom: 2px solid var(--danger);">Pendientes</button>
+        <button class="tab-btn" id="tab_registro" onclick="switchTab('registro')">+ Nuevo</button>
+        <button class="tab-btn" id="tab_caja" onclick="switchTab('caja')" style="border-bottom: 2px solid var(--success);">Caja</button>
+        <button class="tab-btn" id="tab_reportes" onclick="switchTab('reportes')">Reportes</button>
     </div>
     
-    <div id="loader">Sincronizando con la base de datos...</div>
+    <div id="loader">Sincronizando...</div>
 
-    <!-- INICIO (HOY) -->
+    <!-- INICIO -->
     <div id="inicio" class="tab-content active">
-        
-        <!-- Tarjetas de Estadísticas -->
-        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-            <div class="card" style="flex: 1; text-align: center; border-color: var(--accent);">
-                <h4 style="color: var(--text-muted); margin-bottom: 5px;">Efectividad Semanal</h4>
-                <h2 id="stat_semana" style="color: var(--success); font-size: 2em;">0%</h2>
-                <small id="text_semana">0 de 0 completados</small>
+        <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+            <div class="card" style="flex: 1; min-width: 200px; text-align: center; border-bottom: 4px solid var(--accent);">
+                <h4 style="color: var(--text-muted); margin-bottom: 5px;">Entregas de la Semana</h4>
+                <h2 id="stat_semana" style="color: var(--accent); font-size: 2em; margin: 10px 0;">0%</h2>
+                <small id="text_semana" style="font-weight: bold; color: var(--text-main);">0 de 0 completados</small>
             </div>
-            <div class="card" style="flex: 1; text-align: center; border-color: var(--accent);">
-                <h4 style="color: var(--text-muted); margin-bottom: 5px;">Efectividad Mensual</h4>
-                <h2 id="stat_mes" style="color: var(--success); font-size: 2em;">0%</h2>
-                <small id="text_mes">0 de 0 completados</small>
+            <div class="card" style="flex: 1; min-width: 200px; text-align: center; border-bottom: 4px solid var(--success);">
+                <h4 style="color: var(--text-muted); margin-bottom: 5px;">Entregas del Mes</h4>
+                <h2 id="stat_mes" style="color: var(--success); font-size: 2em; margin: 10px 0;">0%</h2>
+                <small id="text_mes" style="font-weight: bold; color: var(--text-main);">0 de 0 completados</small>
             </div>
         </div>
 
-        <!-- Grilla de Pedidos de Hoy -->
-        <div class="grid-pedidos" id="contenedor_hoy">
-            <!-- Las tarjetas se generan aquí automáticamente -->
+        <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin:0; color: var(--accent);">Movimientos Activos</h3>
+            <button class="btn-primary" style="width: auto; padding: 8px 12px; font-size: 0.9em;" id="btn_imprimir_caja" onclick="imprimirTicketsCaja()">🖨️ Imprimir Tickets Caja</button>
         </div>
+        <div class="grid-pedidos" id="contenedor_hoy"></div>
     </div>
 
-    <!-- NUEVO REGISTRO -->
+    <!-- PENDIENTES -->
+    <div id="pendientes" class="tab-content">
+        <h3 style="margin-bottom: 15px; color: var(--danger); border-bottom: 1px solid var(--border); padding-bottom: 5px;">Mercadería No Llevada / Rechazada</h3>
+        <div class="grid-pedidos" id="contenedor_pendientes"></div>
+    </div>
+
+    <!-- NUEVO REGISTRO / EDICIÓN -->
     <div id="registro" class="tab-content">
+        <h3 id="titulo_formulario" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; color: var(--accent);">Registrar Nuevo Ingreso</h3>
+        <div id="aviso_bloqueo_registro" style="display:none; color: var(--danger); font-weight:bold; margin-bottom:15px;">
+            ⚠️ Vista de solo lectura. Únicamente el usuario de Logística puede registrar pedidos.
+        </div>
         <form id="formPedido">
-            <div class="form-group"><label>N° Planilla</label><input type="text" id="n_planilla" required placeholder="Ej. PL-1234"></div>
-            <div class="form-group"><label>Cliente</label><input type="text" id="cliente" required placeholder="Nombre del cliente"></div>
-            <div class="form-group"><label>Chofer</label><input type="text" id="chofer" required placeholder="Nombre del conductor"></div>
-            <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" required placeholder="N° de comprobante"></div>
-            <button type="submit" class="btn-primary" style="margin-top: 10px;">Registrar Ingreso a Planilla</button>
+            <div class="form-group"><label>N° Planilla</label><input type="text" id="n_planilla" required></div>
+            <div style="display:flex; gap:10px;">
+                <div class="form-group" style="flex:1"><label>Motivo</label><input type="text" id="motivo" placeholder="Ej. Reparto regular"></div>
+                
+                <div class="form-group" style="flex:1"><label>Móvil</label>
+                    <select id="movil">
+                        <option value="">Seleccionar...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group"><label>Cliente</label><input type="text" id="cliente" required></div>
+            
+            <div class="form-group"><label>Chofer</label>
+                <select id="chofer" required>
+                    <option value="">Seleccionar Chofer...</option>
+                </select>
+            </div>
+            
+            <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" placeholder="(Opcional)"></div>
+            <button type="submit" id="btn_guardar_nuevo" class="btn-primary" style="margin-top: 10px;">Registrar Ingreso a Planilla</button>
         </form>
+    </div>
+
+    <!-- CAJA -->
+    <div id="caja" class="tab-content">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; color: var(--success);">Control de Pagos (Caja)</h3>
+        <div class="form-group" style="margin-bottom: 20px;">
+            <input type="text" id="filtro_caja" onkeyup="renderizarCaja()" placeholder="🔍 Buscar por Cliente, Chofer, Planilla o Factura...">
+        </div>
+        <div class="grid-pedidos" id="contenedor_caja"></div>
     </div>
 
     <!-- REPORTES -->
     <div id="reportes" class="tab-content">
         <div class="filters">
-            <div class="form-group"><label>Buscar Cliente</label><input type="text" id="filtro_cliente" onkeyup="filtrarReporte()" placeholder="Ej. Vidrios SA"></div>
-            <div class="form-group"><label>Fecha Exacta</label><input type="date" id="filtro_fecha" onchange="filtrarReporte()"></div>
-            <button class="btn-success" onclick="window.print()" style="align-self: flex-end;">🖨️ Imprimir</button>
+            <div class="form-group" style="flex: 2;">
+                <label>Buscar (Cliente, Chofer, Planilla o Factura)</label>
+                <input type="text" id="filtro_general" onkeyup="filtrarReporte()" placeholder="🔍 Buscar...">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Fecha Exacta</label>
+                <input type="date" id="filtro_fecha" onchange="filtrarReporte()">
+            </div>
+            <button class="btn-success" onclick="window.print()" style="align-self: flex-end; margin-bottom: 15px;">🖨️ Imprimir Reporte</button>
         </div>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
                         <th>Fecha</th>
-                        <th>N° Planilla</th>
+                        <th>Planilla</th>
+                        <th>Motivo</th>
+                        <th>Móvil</th>
                         <th>Cliente</th>
                         <th>Chofer</th>
                         <th>Factura</th>
                         <th>Estado</th>
-                        <th>Observación</th>
-                        <th>Entregado</th>
+                        <th class="no-print">Est. Pago</th> 
                     </tr>
                 </thead>
                 <tbody id="tabla_reporte"></tbody>
             </table>
         </div>
     </div>
+
+    <div id="print_tickets_container"></div>
 </div>
 
 <script>
-    // URL de tu Google Apps Script
-    const API_URL = "https://script.google.com/macros/s/AKfycbwAUq4YEr2U_67lJsYggD7umo5Xh6ljv1keIx5J6PHcZ1MYR2qIIkQKcotQtxjGz7rPBw/exec"; 
+    const CONFIG_USUARIOS = {
+        "deposito":     { pass: "1234",         rol: "deposito",  nombre: "Depósito",      bgColor: "#e1f5fe" }, 
+        "logistica":    { pass: "4321",         rol: "logistica", nombre: "Logística",     bgColor: "#fff9c4" }, 
+        "caja":         { pass: "0000",         rol: "caja",      nombre: "Caja",          bgColor: "#ff80ab" }, 
+        "devoluciones": { pass: "devoluciones", rol: "visor",     nombre: "Devoluciones",  bgColor: "#f3e5f5" }, 
+        "admin":        { pass: "adminl",       rol: "admin",     nombre: "Administrador", bgColor: "#e0f2f1" }  
+    };
+
+    let usuarioActual = null;
+    let rolActual = null;
+    let idEdicionActiva = null; 
+
+    // TU ENLACE INCORPORADO
+    const API_URL = "https://script.google.com/macros/s/AKfycbwfvwhgo5BT--Nb1VpZk9Vxvv_Uso1vgsOxPRy79FN8-Nw_0ZTr9adEtlMMe7kHyg7jWA/exec"; 
     
     let datosGlobales = [];
 
-    // Función para alternar entre pestañas
+    window.onload = function() {
+        const sesionGuardada = localStorage.getItem("sesion_logistica");
+        if(sesionGuardada && CONFIG_USUARIOS[sesionGuardada]) {
+            ingresarAlSistema(sesionGuardada);
+        }
+    };
+
+    function iniciarSesion() {
+        const u = document.getElementById('login_user').value.toLowerCase().trim();
+        const p = document.getElementById('login_pass').value.trim();
+        
+        if(CONFIG_USUARIOS[u] && CONFIG_USUARIOS[u].pass === p) {
+            localStorage.setItem("sesion_logistica", u);
+            ingresarAlSistema(u);
+        } else {
+            document.getElementById('login_error').style.display = 'block';
+        }
+    }
+
+    function cerrarSesion() {
+        localStorage.removeItem("sesion_logistica");
+        location.reload(); 
+    }
+
+    function ingresarAlSistema(userKey) {
+        usuarioActual = CONFIG_USUARIOS[userKey];
+        rolActual = usuarioActual.rol;
+        
+        document.body.style.backgroundColor = usuarioActual.bgColor;
+        document.getElementById('login_screen').style.display = 'none';
+        document.getElementById('app_container').style.display = 'block';
+        document.getElementById('display_user').innerText = "👤 " + usuarioActual.nombre;
+
+        aplicarPermisosDeRol();
+        cargarDatos(false); 
+        setInterval(function() { cargarDatos(true); }, 30000);
+    }
+
+    function aplicarPermisosDeRol() {
+        if(rolActual === 'visor') {
+            document.getElementById('tab_registro').style.display = 'none';
+            document.getElementById('tab_caja').style.display = 'none';
+        }
+        
+        if(rolActual !== 'logistica' && rolActual !== 'admin') {
+            document.getElementById('btn_guardar_nuevo').style.display = 'none';
+            document.getElementById('aviso_bloqueo_registro').style.display = 'block';
+            document.querySelectorAll('#formPedido input, #formPedido select').forEach(elem => elem.disabled = true);
+        }
+    }
+
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.color = 'var(--text-main)'; 
+        });
+        
+        const activeBtn = event.currentTarget;
+        activeBtn.classList.add('active');
+        activeBtn.style.color = '#ffffff'; 
+
         document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
+        
+        if (tabId !== 'registro' && idEdicionActiva) {
+            idEdicionActiva = null;
+            document.getElementById('formPedido').reset();
+            document.getElementById('titulo_formulario').innerText = "Registrar Nuevo Ingreso";
+            document.getElementById('btn_guardar_nuevo').innerText = "Registrar Ingreso a Planilla";
+            document.getElementById('btn_guardar_nuevo').style.background = "var(--accent)";
+        }
+
         if(tabId === 'inicio') renderizarHoy();
+        if(tabId === 'pendientes') renderizarPendientes();
+        if(tabId === 'caja') {
+            document.getElementById('filtro_caja').value = ''; 
+            renderizarCaja();
+        }
         if(tabId === 'reportes') filtrarReporte();
     }
 
-    // Funciones de tiempo
     function obtenerHora() {
         const d = new Date();
         return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
     }
+    
     function obtenerFecha() {
-        return new Date().toISOString().split('T')[0];
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
-    // Descargar datos desde Google Sheets
-    async function cargarDatos() {
-        document.getElementById('loader').style.display = 'block';
-        try {
-            const resp = await fetch(API_URL);
-            datosGlobales = await resp.json();
-            renderizarHoy();
-            calcularEstadisticas();
-            filtrarReporte();
-        } catch (error) {
-            console.error("Error al sincronizar:", error);
-        }
-        document.getElementById('loader').style.display = 'none';
+    function limpiarHoraCruda(str) {
+        if(!str) return '';
+        if(str.includes('T')) return str.split('T')[1].substring(0, 5);
+        return str;
     }
 
-    // Calcular estadísticas (Semana y Mes)
     function calcularEstadisticas() {
         const hoy = new Date();
-        
-        // Calcular inicio de mes
         const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
         
-        // Calcular inicio de semana (Lunes)
         const diaSemana = hoy.getDay() || 7; 
         const inicioSemana = new Date(hoy);
         inicioSemana.setDate(hoy.getDate() - diaSemana + 1);
@@ -194,6 +355,7 @@
         let totalMes = 0, entregadosMes = 0;
 
         datosGlobales.forEach(p => {
+            if(!p.fecha) return;
             if (p.fecha >= inicioMes) {
                 totalMes++;
                 if (p.estado === 'Se cargó') entregadosMes++;
@@ -209,43 +371,196 @@
 
         document.getElementById('stat_semana').innerText = porcSemana + "%";
         document.getElementById('text_semana').innerText = `${entregadosSemana} de ${totalSemana} completados`;
-        
         document.getElementById('stat_mes').innerText = porcMes + "%";
         document.getElementById('text_mes').innerText = `${entregadosMes} de ${totalMes} completados`;
     }
 
-    // Dibujar las tarjetas del día actual
+    async function cargarDatos(enSilencio = false) {
+        if (!enSilencio) document.getElementById('loader').style.display = 'block';
+        try {
+            const urlFresca = API_URL + "?t=" + new Date().getTime();
+            const resp = await fetch(urlFresca, { redirect: 'follow' });
+            
+            let dataServer = await resp.json();
+            
+            datosGlobales = dataServer.registros.map(p => {
+                if(p.fecha && p.fecha.includes('T')) p.fecha = p.fecha.split('T')[0];
+                return p;
+            });
+
+            llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
+            
+            calcularEstadisticas();
+            renderizarHoy();
+            renderizarPendientes();
+            renderizarCaja();
+            filtrarReporte();
+        } catch (error) {
+            console.error("Error al sincronizar:", error);
+        }
+        if (!enSilencio) document.getElementById('loader').style.display = 'none';
+    }
+
+    function llenarSelects(listaChoferes, listaMoviles) {
+        const selChofer = document.getElementById('chofer');
+        const selMovil = document.getElementById('movil');
+        
+        const valChofer = selChofer.value;
+        const valMovil = selMovil.value;
+
+        selChofer.innerHTML = '<option value="">Seleccionar Chofer...</option>';
+        selMovil.innerHTML = '<option value="">Seleccionar...</option>';
+
+        listaChoferes.forEach(c => {
+            if(c) selChofer.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        listaMoviles.forEach(m => {
+            if(m) selMovil.innerHTML += `<option value="${m}">${m}</option>`;
+        });
+
+        selChofer.value = valChofer;
+        selMovil.value = valMovil;
+    }
+
     function renderizarHoy() {
         const hoy = obtenerFecha();
         const contenedor = document.getElementById('contenedor_hoy');
         contenedor.innerHTML = '';
         
-        const pedidosHoy = datosGlobales.filter(p => p.fecha === hoy);
+        const itemsMostrar = datosGlobales.filter(p => 
+            (p.estado === 'En espera') || 
+            (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+        );
         
-        if(pedidosHoy.length === 0) {
-            contenedor.innerHTML = '<p style="color:var(--text-muted); grid-column: 1/-1;">No hay registros cargados para el día de hoy.</p>';
+        if(itemsMostrar.length === 0) {
+            contenedor.innerHTML = '<p style="color:var(--text-muted); grid-column: 1/-1;">No hay registros activos ni pendientes para mostrar.</p>';
             return;
         }
 
-        pedidosHoy.reverse().forEach(p => {
-            let badgeClass = p.estado === 'En espera' ? 'espera' : (p.estado === 'Se cargó' ? 'salida' : 'nolleva');
+        const pendientes = itemsMostrar.filter(p => p.estado === 'En espera').reverse();
+        const procesados = itemsMostrar.filter(p => p.estado !== 'En espera').reverse();
+        const listaFinal = [...pendientes, ...procesados];
+
+        listaFinal.forEach(p => {
+            let badgeClass = p.estado === 'En espera' ? 'espera' : 'salida';
+            let fechaBonita = p.fecha.split('-').reverse().join('/');
+            
             let html = `
-                <div class="card">
+                <div class="card" ${p.estado !== 'En espera' ? 'style="opacity: 0.7;"' : ''}>
                     <span class="badge ${badgeClass}">${p.estado}</span>
+                    ${p.pago === 'Pagado' ? '<span class="badge salida" style="float:right;">Pagado</span>' : ''}
                     <h3>Planilla: ${p.n_planilla}</h3>
-                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Móvil / Motivo:</strong> ${p.movil || '-'} / ${p.motivo || '-'}</p>
                     <p><strong>Chofer:</strong> ${p.chofer}</p>
-                    <p><strong>Factura:</strong> ${p.factura}</p>
-                    <p>🕒 <strong>Agregado:</strong> ${p.hora_agregado}</p>
-                    ${p.hora_salida ? `<p>✅ <strong>Salida:</strong> ${p.hora_salida}</p>` : ''}
+                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
+                    <p>🕒 <strong>Agregado:</strong> ${fechaBonita} a las ${limpiarHoraCruda(p.hora_agregado)}</p>
+                    ${p.hora_salida ? `<p>✅ <strong>Salida:</strong> ${limpiarHoraCruda(p.hora_salida)}</p>` : ''}
             `;
             
-            // Botones solo si está en espera
-            if(p.estado === 'En espera') {
+            if(p.estado === 'En espera' && (rolActual === 'deposito' || rolActual === 'admin')) {
                 html += `
                     <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button class="btn-success" style="width:100%; margin-bottom:5px;" onclick="marcarSalida('${p.id}', 'Se cargó')">✔️ Confirmar que se cargó y salió</button>
                         <button class="btn-danger" style="width:100%; margin-top:0;" onclick="marcarSalida('${p.id}', 'No se llevó')">❌ No se llevó</button>
+                    </div>
+                `;
+            }
+
+            if(rolActual === 'logistica' || rolActual === 'admin') {
+                html += `
+                    <div style="margin-top: 10px; display:flex; gap:5px; border-top: 1px solid var(--border); padding-top: 10px;">
+                        <button style="flex:1; background:var(--warning); padding:8px; font-size:0.85em;" onclick="iniciarEdicion('${p.id}')">✏️ Editar</button>
+                        <button style="flex:1; background:var(--danger); padding:8px; font-size:0.85em;" onclick="eliminarPedido('${p.id}')">🗑️ Eliminar</button>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            contenedor.innerHTML += html;
+        });
+    }
+
+    function renderizarCaja() {
+        const hoy = obtenerFecha();
+        const contenedor = document.getElementById('contenedor_caja');
+        const txtFiltro = document.getElementById('filtro_caja') ? document.getElementById('filtro_caja').value.toLowerCase() : '';
+        contenedor.innerHTML = '';
+        
+        let itemsCaja = datosGlobales.filter(p => p.estado !== 'No se llevó' && (p.fecha === hoy || p.pago !== 'Pagado'));
+        
+        if (txtFiltro) {
+            itemsCaja = itemsCaja.filter(p => 
+                (p.cliente && p.cliente.toLowerCase().includes(txtFiltro)) ||
+                (p.n_planilla && p.n_planilla.toLowerCase().includes(txtFiltro)) ||
+                (p.chofer && p.chofer.toLowerCase().includes(txtFiltro)) ||
+                (p.factura && p.factura.toLowerCase().includes(txtFiltro))
+            );
+        }
+
+        if(itemsCaja.length === 0) {
+            contenedor.innerHTML = '<p style="color:var(--text-muted); grid-column: 1/-1;">No hay planillas pendientes de cobro o no coinciden con tu búsqueda.</p>';
+            return;
+        }
+
+        const pendientes = itemsCaja.filter(p => p.pago !== 'Pagado').reverse();
+        const pagados = itemsCaja.filter(p => p.pago === 'Pagado').reverse();
+        const listaFinal = [...pendientes, ...pagados];
+
+        listaFinal.forEach(p => {
+            let esPagado = (p.pago === 'Pagado');
+            let badgeClass = esPagado ? 'salida' : 'espera';
+            let txtPago = esPagado ? 'Pagado' : 'Pago Pendiente';
+
+            let html = `
+                <div class="card" ${esPagado ? 'style="opacity: 0.6;"' : ''}>
+                    <span class="badge ${badgeClass}">${txtPago}</span>
+                    <h3>Planilla: ${p.n_planilla}</h3>
+                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Chofer:</strong> ${p.chofer}</p>
+                    <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
+                    <p><strong>Estado Logística:</strong> ${p.estado}</p>
+            `;
+            
+            if(!esPagado && (rolActual === 'caja' || rolActual === 'admin')) {
+                html += `
+                    <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
+                        <button class="btn-success" style="width:100%; background:#4caf50;" onclick="marcarPago('${p.id}')">💰 Confirmar Pago</button>
+                    </div>
+                `;
+            } else if (esPagado) {
+                html += `<p style="margin-top:10px; color:var(--success); font-weight:bold;">✅ Pago Confirmado</p>`;
+            }
+            html += `</div>`;
+            contenedor.innerHTML += html;
+        });
+    }
+
+    function renderizarPendientes() {
+        const contenedor = document.getElementById('contenedor_pendientes');
+        contenedor.innerHTML = '';
+        const pendientes = datosGlobales.filter(p => p.estado === 'No se llevó').reverse();
+        
+        if(pendientes.length === 0) {
+            contenedor.innerHTML = '<p style="color:var(--text-muted); grid-column: 1/-1;">No hay pedidos pendientes de reenvío.</p>';
+            return;
+        }
+        pendientes.forEach(p => {
+            let html = `
+                <div class="card" style="border-left: 4px solid var(--danger);">
+                    <span class="badge nolleva">Pendiente Reenvío</span>
+                    <h3>Ex Planilla: ${p.n_planilla}</h3>
+                    <p><strong>Chofer:</strong> ${p.chofer}</p>
+                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Observación de Rechazo:</strong> ${p.observacion}</p>
+            `;
+            
+            if(rolActual === 'logistica' || rolActual === 'admin') {
+                html += `<button class="btn-primary" style="margin-top:15px;" onclick="reasignarPedido('${p.id}')">🔄 Reasignar a Nueva Planilla</button>`;
+                html += `
+                    <div style="margin-top: 10px; display:flex; gap:5px; border-top: 1px solid var(--border); padding-top: 10px;">
+                        <button style="flex:1; background:var(--warning); padding:8px; font-size:0.85em;" onclick="iniciarEdicion('${p.id}')">✏️ Editar</button>
+                        <button style="flex:1; background:var(--danger); padding:8px; font-size:0.85em;" onclick="eliminarPedido('${p.id}')">🗑️ Eliminar</button>
                     </div>
                 `;
             }
@@ -254,102 +569,220 @@
         });
     }
 
-    // Enviar nuevo pedido a Google Sheets
+    function eliminarPedido(id) {
+        if(!confirm("¿Estás 100% seguro de ELIMINAR este pedido por completo? Esta acción no se puede deshacer.")) return;
+        
+        datosGlobales = datosGlobales.filter(p => p.id !== id);
+        renderizarHoy(); renderizarPendientes(); filtrarReporte(); calcularEstadisticas();
+        
+        const dataUpdate = { action: "delete", id: id };
+        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
+        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+    }
+
+    function iniciarEdicion(id) {
+        let item = datosGlobales.find(x => x.id === id);
+        if(!item) return;
+
+        idEdicionActiva = id; 
+
+        document.getElementById('n_planilla').value = item.n_planilla;
+        document.getElementById('motivo').value = item.motivo || "";
+        
+        // Verifica si la opción existe, si no, la agrega temporalmente para poder verla
+        let selMovil = document.getElementById('movil');
+        if (item.movil && !Array.from(selMovil.options).some(opt => opt.value === item.movil)) {
+            selMovil.innerHTML += `<option value="${item.movil}">${item.movil}</option>`;
+        }
+        selMovil.value = item.movil || "";
+        
+        document.getElementById('cliente').value = item.cliente;
+        
+        let selChofer = document.getElementById('chofer');
+        if (item.chofer && !Array.from(selChofer.options).some(opt => opt.value === item.chofer)) {
+            selChofer.innerHTML += `<option value="${item.chofer}">${item.chofer}</option>`;
+        }
+        selChofer.value = item.chofer;
+        
+        document.getElementById('factura').value = item.factura || "";
+
+        document.getElementById('titulo_formulario').innerText = "✏️ Editando Pedido";
+        document.getElementById('btn_guardar_nuevo').innerText = "💾 Guardar Cambios";
+        document.getElementById('btn_guardar_nuevo').style.background = "var(--warning)";
+
+        document.getElementById('tab_registro').click();
+    }
+
     document.getElementById('formPedido').addEventListener('submit', function(e) {
         e.preventDefault();
-        const data = {
-            action: "add",
-            id: "ID-" + Date.now(),
-            fecha: obtenerFecha(),
-            hora_agregado: obtenerHora(),
+        if(rolActual !== 'logistica' && rolActual !== 'admin') {
+            alert("No tienes permisos para registrar o editar pedidos."); return;
+        }
+
+        const dataForm = {
             n_planilla: document.getElementById('n_planilla').value,
+            motivo: document.getElementById('motivo').value,
+            movil: document.getElementById('movil').value,
             cliente: document.getElementById('cliente').value,
             chofer: document.getElementById('chofer').value,
-            factura: document.getElementById('factura').value,
-            observacion: ""
+            factura: document.getElementById('factura').value || "Sin Factura"
         };
 
-        // Guardado visual rápido
-        datosGlobales.push({...data, estado: "En espera", hora_salida: "", entregado: "Pendiente"});
-        this.reset();
-        switchTab('inicio');
-        
-        // Enviar a Sheets
-        fetch(API_URL, { method: 'POST', body: JSON.stringify(data) })
-            .then(() => cargarDatos());
+        if (idEdicionActiva) {
+            dataForm.action = "edit";
+            dataForm.id = idEdicionActiva;
+            
+            let item = datosGlobales.find(x => x.id === idEdicionActiva);
+            Object.assign(item, dataForm);
+            
+            alert("✅ Cambios guardados correctamente.");
+            
+            idEdicionActiva = null;
+            document.getElementById('titulo_formulario').innerText = "Registrar Nuevo Ingreso";
+            document.getElementById('btn_guardar_nuevo').innerText = "Registrar Ingreso a Planilla";
+            document.getElementById('btn_guardar_nuevo').style.background = "var(--accent)";
+            
+            this.reset();
+            document.getElementById('tab_inicio').click();
+            
+            fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
+            .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+            
+        } else {
+            dataForm.action = "add";
+            dataForm.id = "ID-" + Date.now();
+            dataForm.fecha = obtenerFecha();
+            dataForm.hora_agregado = obtenerHora();
+            dataForm.observacion = "";
+
+            datosGlobales.push({...dataForm, estado: "En espera", hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
+            this.reset();
+            alert("✅ Pedido creado exitosamente.");
+            
+            fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
+            .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+        }
     });
 
-    // Actualizar estado de salida
+    function marcarPago(id) {
+        if(!confirm("¿Confirmar que este pedido ya fue PAGADO en caja?")) return;
+        let item = datosGlobales.find(x => x.id === id);
+        if(item) {
+            item.pago = "Pagado";
+            renderizarCaja(); renderizarHoy(); filtrarReporte();
+        }
+        const dataUpdate = { action: "update_pago", id: id, pago: "Pagado" };
+        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
+        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+    }
+
+    function reasignarPedido(id) {
+        let nuevaPlanilla = prompt("Ingresa el NUEVO N° de Planilla para este reenvío:");
+        if(!nuevaPlanilla) return; 
+        let item = datosGlobales.find(x => x.id === id);
+        if(item) {
+            item.n_planilla = nuevaPlanilla; item.estado = "En espera";
+            item.hora_salida = ""; item.observacion = "";
+            item.fecha = obtenerFecha(); item.entregado = "Pendiente";
+            alert(`✅ Asignado a planilla ${nuevaPlanilla}. Volvió a Inicio.`);
+            document.getElementById('tab_inicio').click();
+        }
+        const dataUpdate = { action: "reasignar", id: id, n_planilla: nuevaPlanilla };
+        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
+        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+    }
+
     function marcarSalida(id, estado) {
         let obs = "";
         let statusEntregado = "Pendiente";
         
         if (estado === "No se llevó") {
             obs = prompt("Indica el motivo por el cual no se llevó la mercadería:");
-            if (obs === null) return; // Si cancela el prompt
+            if (obs === null) return; 
             statusEntregado = "No";
         } else if (estado === "Se cargó") {
             statusEntregado = "Sí";
         }
         
         const dataUpdate = {
-            action: "update_salida",
-            id: id,
-            estado: estado,
-            hora_salida: obtenerHora(),
-            observacion: obs,
-            entregado: statusEntregado
+            action: "update_salida", id: id, estado: estado, hora_salida: obtenerHora(),
+            observacion: obs, entregado: statusEntregado
         };
 
-        // Reflejar cambio visualmente de inmediato
         let item = datosGlobales.find(x => x.id === id);
         if(item) {
-            item.estado = estado;
-            item.hora_salida = dataUpdate.hora_salida;
-            item.observacion = obs;
-            item.entregado = statusEntregado;
-            renderizarHoy();
+            item.estado = estado; item.hora_salida = dataUpdate.hora_salida;
+            item.observacion = obs; item.entregado = statusEntregado;
             calcularEstadisticas();
+            renderizarHoy(); renderizarPendientes(); renderizarCaja();
         }
-
-        // Enviar a Sheets
-        fetch(API_URL, { method: 'POST', body: JSON.stringify(dataUpdate) })
-            .then(() => cargarDatos());
+        fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataUpdate) })
+        .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
-    // Cargar la tabla de reportes
+    function imprimirTicketsCaja() {
+        const hoy = obtenerFecha();
+        const pedidosHoy = datosGlobales.filter(p => 
+            (p.estado === 'En espera') || 
+            (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
+        );
+        if (pedidosHoy.length === 0) { alert("No hay pedidos activos ni en espera para imprimir."); return; }
+        const contenedor = document.getElementById('print_tickets_container');
+        let html = '<div class="ticket-grid">';
+        pedidosHoy.forEach(p => {
+            html += `
+                <div class="ticket">
+                    <h4>🎫 ADJUNTO CON ESTA PLANILLA</h4>
+                    <p><strong>Planilla:</strong> ${p.n_planilla}</p>
+                    <p><strong>Móvil:</strong> ${p.movil || '-'}</p>
+                    <p><strong>Chofer:</strong> ${p.chofer}</p>
+                    <p><strong>Cliente:</strong> ${p.cliente}</p>
+                    <p><strong>Motivo:</strong> ${p.motivo || '-'}</p>
+                    <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
+                </div>
+            `;
+        });
+        html += '</div>';
+        contenedor.innerHTML = html;
+        document.body.classList.add('imprimiendo-tickets');
+        window.print();
+        document.body.classList.remove('imprimiendo-tickets');
+    }
+
     function filtrarReporte() {
-        const txtCliente = document.getElementById('filtro_cliente').value.toLowerCase();
+        const txtFiltro = document.getElementById('filtro_general').value.toLowerCase();
         const dateFiltro = document.getElementById('filtro_fecha').value;
         const tbody = document.getElementById('tabla_reporte');
         tbody.innerHTML = '';
 
         const filtrados = datosGlobales.filter(p => {
-            const matchCliente = p.cliente.toLowerCase().includes(txtCliente);
+            const matchTexto = (p.cliente && p.cliente.toLowerCase().includes(txtFiltro)) ||
+                               (p.n_planilla && p.n_planilla.toLowerCase().includes(txtFiltro)) ||
+                               (p.chofer && p.chofer.toLowerCase().includes(txtFiltro)) ||
+                               (p.factura && p.factura.toLowerCase().includes(txtFiltro));
             const matchFecha = dateFiltro ? (p.fecha === dateFiltro) : true;
-            return matchCliente && matchFecha;
+            return matchTexto && matchFecha;
         });
 
         filtrados.forEach(p => {
-            // Se renderizan solo las 8 columnas solicitadas
+            let colorPago = p.pago === 'Pagado' ? 'var(--success)' : 'var(--danger)';
+            let txtPago = p.pago === 'Pagado' ? 'Pagado' : 'Pendiente';
+            
             tbody.innerHTML += `
                 <tr>
                     <td style="white-space:nowrap;">${p.fecha.split('-').reverse().join('/')}</td>
                     <td><b>${p.n_planilla}</b></td>
+                    <td>${p.motivo || '-'}</td>
+                    <td>${p.movil || '-'}</td>
                     <td>${p.cliente}</td>
                     <td>${p.chofer}</td>
-                    <td>${p.factura}</td>
+                    <td>${p.factura || '-'}</td>
                     <td>${p.estado}</td>
-                    <td>${p.observacion || '-'}</td>
-                    <td><b>${p.entregado || '-'}</b></td>
+                    <td class="no-print" style="color:${colorPago}; font-weight:bold;">${txtPago}</td>
                 </tr>
             `;
         });
     }
-
-    // Inicializar datos al cargar la página
-    window.onload = cargarDatos;
-
 </script>
 </body>
 </html>
