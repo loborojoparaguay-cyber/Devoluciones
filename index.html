@@ -158,14 +158,20 @@
             <div class="form-group"><label>N° Planilla</label><input type="text" id="n_planilla" required></div>
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1"><label>Motivo</label><input type="text" id="motivo" placeholder="Ej. Reparto regular"></div>
+                
                 <div class="form-group" style="flex:1"><label>Móvil</label>
-                    <select id="movil"><option value="">Seleccionar...</option></select>
+                    <select id="movil">
+                        <option value="">Seleccionar...</option>
+                    </select>
                 </div>
             </div>
             
             <div class="form-group"><label>Cliente</label><input type="text" id="cliente" required></div>
+            
             <div class="form-group"><label>Chofer</label>
-                <select id="chofer" required><option value="">Seleccionar Chofer...</option></select>
+                <select id="chofer" required>
+                    <option value="">Seleccionar Chofer...</option>
+                </select>
             </div>
             
             <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" placeholder="(Opcional)"></div>
@@ -232,7 +238,7 @@
     let rolActual = null;
     let idEdicionActiva = null; 
 
-    // ENLACE CORRECTO
+    // TU ENLACE INCORPORADO
     const API_URL = "https://script.google.com/macros/s/AKfycbyhT4YHElLSQI9g2Hb3GWUHZHv-N1C7YB9bcXrOemJs3NkhvjtTN9q0xIfZco1GGnIX/exec"; 
     
     let datosGlobales = [];
@@ -280,6 +286,7 @@
             document.getElementById('tab_registro').style.display = 'none';
             document.getElementById('tab_caja').style.display = 'none';
         }
+        
         if(rolActual !== 'logistica' && rolActual !== 'admin') {
             document.getElementById('btn_guardar_nuevo').style.display = 'none';
             document.getElementById('aviso_bloqueo_registro').style.display = 'block';
@@ -330,6 +337,20 @@
         return `${year}-${month}-${day}`;
     }
 
+    // NORMALIZADOR DE FECHAS: Convierte cualquier formato a YYYY-MM-DD
+    function normalizarFecha(f) {
+        if (!f) return '';
+        if (f.includes('T')) return f.split('T')[0];
+        if (f.includes('/')) {
+            let p = f.split('/');
+            // Si el año está al final (ej. 17/11/2026)
+            if (p[2] && p[2].length === 4) {
+                return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+            }
+        }
+        return f;
+    }
+
     function limpiarHoraCruda(str) {
         if(!str) return '';
         if(str.includes('T')) return str.split('T')[1].substring(0, 5);
@@ -377,19 +398,17 @@
             
             let dataServer = await resp.json();
             
-            // ESCUDO PROTECTOR PARA EVITAR QUE SE QUEDE COLGADO
+            // ESCUDO ANTICOLGADOS (Compatibilidad de versiones)
             let registrosCrudos = [];
             if (Array.isArray(dataServer)) {
-                // Si el Excel no fue actualizado, usa el formato viejo sin listas
                 registrosCrudos = dataServer; 
             } else if (dataServer && dataServer.registros) {
-                // Si el Excel fue actualizado, usa el formato nuevo y carga las listas
                 registrosCrudos = dataServer.registros; 
                 llenarSelects(dataServer.choferes || [], dataServer.moviles || []);
             }
             
             datosGlobales = registrosCrudos.map(p => {
-                if(p.fecha && typeof p.fecha === 'string' && p.fecha.includes('T')) p.fecha = p.fecha.split('T')[0];
+                p.fecha = normalizarFecha(p.fecha);
                 return p;
             });
 
@@ -400,8 +419,9 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
-            // Mostrará alerta en vez de colgarse si hay falla grave
-            if (!enSilencio) alert("Error conectando con la base de datos.");
+            if (!enSilencio) {
+                alert("⚠️ Error de conexión.\nSi la pantalla está en blanco, asegúrate de que en Google Apps Script configuraste:\n\n1. Ejecutar como: YO\n2. Quién tiene acceso: CUALQUIER PERSONA");
+            }
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -480,6 +500,7 @@
                     </div>
                 `;
             }
+
             html += `</div>`;
             contenedor.innerHTML += html;
         });
@@ -635,6 +656,7 @@
             
             let item = datosGlobales.find(x => x.id === idEdicionActiva);
             Object.assign(item, dataForm);
+            
             alert("✅ Cambios guardados correctamente.");
             
             idEdicionActiva = null;
@@ -644,8 +666,10 @@
             
             this.reset();
             document.getElementById('tab_inicio').click();
+            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
+            
         } else {
             dataForm.action = "add";
             dataForm.id = "ID-" + Date.now();
@@ -656,6 +680,7 @@
             datosGlobales.push({...dataForm, estado: "En espera", hora_salida: "", entregado: "Pendiente", pago: "Pendiente"});
             this.reset();
             alert("✅ Pedido creado exitosamente.");
+            
             fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dataForm) })
             .then(() => { setTimeout(() => cargarDatos(true), 1500); });
         }
@@ -717,25 +742,20 @@
         .then(() => { setTimeout(() => cargarDatos(true), 1500); });
     }
 
+    // IMPRESIÓN INTELIGENTE POR FECHA
     function imprimirTicketsCaja() {
-        let opcion = prompt("Opciones de impresión:\n1. Deje en blanco y dele a 'Aceptar' para imprimir TODO lo de hoy.\n2. Escriba un N° de Planilla para imprimir solo esa planilla específica:");
+        let fechaHoyLocal = obtenerFecha().split('-').reverse().join('/');
+        let opcion = prompt("🖨️ IMPRIMIR TICKETS\nIngrese la fecha que desea imprimir (Día/Mes/Año):", fechaHoyLocal);
         
         if (opcion === null) return; 
 
-        let pedidosImprimir = [];
-        
-        if (opcion.trim() !== "") {
-            pedidosImprimir = datosGlobales.filter(p => p.n_planilla.toLowerCase().includes(opcion.trim().toLowerCase()) && p.estado !== 'No se llevó');
-        } else {
-            const hoy = obtenerFecha();
-            pedidosImprimir = datosGlobales.filter(p => 
-                (p.estado === 'En espera') || 
-                (p.fecha === hoy && p.estado !== 'No se llevó' && p.estado !== 'En espera')
-            );
-        }
+        let fechaBuscada = normalizarFecha(opcion.trim());
+        if (!fechaBuscada) fechaBuscada = obtenerFecha(); 
+
+        let pedidosImprimir = datosGlobales.filter(p => p.fecha === fechaBuscada && p.estado !== 'No se llevó');
 
         if (pedidosImprimir.length === 0) { 
-            alert("No hay pedidos que coincidan para imprimir."); 
+            alert(`No hay pedidos activos para la fecha: ${opcion}`); 
             return; 
         }
 
@@ -785,7 +805,6 @@
                 accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
             }
             if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && p.estado === 'Se cargó') {
-                // ICONO REEMPLAZADO AQUI
                 accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
             }
 
