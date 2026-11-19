@@ -1,7 +1,7 @@
 {
-  "name": "Logística y Devoluciones",
+  "name": "Reenvios y Devoluciones",
   "short_name": "Logística",
-  "start_url": "./devoluciones.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#007acc",
