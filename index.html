@@ -315,11 +315,12 @@
 
 <script>
     const CONFIG_USUARIOS = {
-        "deposito":     { pass: "1234",         rol: "deposito",  nombre: "Depósito",      bgColor: "#e1f5fe" }, 
-        "logistica":    { pass: "4321",         rol: "logistica", nombre: "Logística",     bgColor: "#fff9c4" }, 
-        "caja":         { pass: "0000",         rol: "caja",      nombre: "Caja",          bgColor: "#fce4ec" }, 
-        "devoluciones": { pass: "devoluciones", rol: "visor",     nombre: "Devoluciones",  bgColor: "#f3e5f5" }, 
-        "admin":        { pass: "adminl",       rol: "admin",     nombre: "Administrador", bgColor: "#e0f2f1" }  
+        "deposito":     { pass: "1234",         rol: "deposito",  nombre: "Depósito KM 17.5", bgColor: "#e1f5fe" }, 
+        "depo20":       { pass: "1234",         rol: "depo20",    nombre: "Depósito KM 20",   bgColor: "#fff3e0" }, 
+        "logistica":    { pass: "4321",         rol: "logistica", nombre: "Logística",        bgColor: "#fff9c4" }, 
+        "caja":         { pass: "0000",         rol: "caja",      nombre: "Caja",             bgColor: "#fce4ec" }, 
+        "devoluciones": { pass: "devoluciones", rol: "visor",     nombre: "Devoluciones",     bgColor: "#f3e5f5" }, 
+        "admin":        { pass: "adminl",       rol: "admin",     nombre: "Administrador",    bgColor: "#e0f2f1" }  
     };
 
     let usuarioActual = null;
@@ -335,6 +336,14 @@
     const esNoLlevo = (p) => p.estado && p.estado.toLowerCase().includes('llev');
     const esEntregado = (p) => p.estado && p.estado.toLowerCase().includes('carg');
     const esPagado = (p) => p.pago && p.pago.toLowerCase().includes('pagado');
+
+    function puedeDespacharPedido(p) {
+        let obs = p.observacion ? String(p.observacion).toUpperCase() : "";
+        if (rolActual === 'admin') return true;
+        if (rolActual === 'deposito' && obs.includes('17.5')) return true;
+        if (rolActual === 'depo20' && obs.includes('KM 20')) return true;
+        return false;
+    }
 
     window.onload = function() {
         document.getElementById('fecha_impresion_caja').value = obtenerFecha();
@@ -589,7 +598,7 @@
                     ${p.hora_salida ? `<p>✅ <strong>Salida:</strong> ${limpiarHoraCruda(p.hora_salida)}</p>` : ''}
             `;
             
-            if(esEnEspera(p) && (rolActual === 'deposito' || rolActual === 'admin')) {
+            if(esEnEspera(p) && puedeDespacharPedido(p)) {
                 html += `
                     <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button class="btn-success" style="width:100%; margin-bottom:5px;" onclick="marcarSalida('${p.id}', 'Se cargó')">✔️ Confirmar que se cargó y salió</button>
@@ -880,7 +889,8 @@
         let item = datosGlobales.find(x => x.id === id);
         if(item) {
             item.estado = estado; item.hora_salida = dataUpdate.hora_salida;
-            item.observacion = obs; item.entregado = statusEntregado;
+            if (obs) item.observacion = obs;
+            item.entregado = statusEntregado;
             calcularEstadisticas();
             renderizarHoy(); renderizarPendientes(); renderizarCaja(); filtrarReporte();
         }
@@ -954,7 +964,7 @@
             if(rolActual === 'logistica' || rolActual === 'admin') {
                 accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
             }
-            if((rolActual === 'deposito' || rolActual === 'logistica' || rolActual === 'admin') && esEntregado(p)) {
+            if((rolActual === 'logistica' || puedeDespacharPedido(p)) && esEntregado(p)) {
                 accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
             }
 
