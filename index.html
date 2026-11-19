@@ -102,6 +102,7 @@
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; color: #fff; }
         .badge.espera { background: var(--warning); }
         .badge.salida { background: var(--success); }
+        .badge.cerrado { background: #455a64; }
         .badge.nolleva { background: var(--danger); }
         
         .form-group { margin-bottom: 15px; }
@@ -334,7 +335,9 @@
 
     const esEnEspera = (p) => p.estado && p.estado.toLowerCase().includes('espera');
     const esNoLlevo = (p) => p.estado && p.estado.toLowerCase().includes('llev');
-    const esEntregado = (p) => p.estado && p.estado.toLowerCase().includes('carg');
+    const esCargado = (p) => p.estado && p.estado.toLowerCase().includes('carg');
+    const esCerrado = (p) => p.estado && p.estado.toLowerCase().includes('entregado');
+    const esCompletado = (p) => esCargado(p) || esCerrado(p);
     const esPagado = (p) => p.pago && p.pago.toLowerCase().includes('pagado');
 
     function puedeDespacharPedido(p) {
@@ -478,7 +481,7 @@
             
             if (p.fecha.startsWith(prefijoMes)) {
                 totalMes++;
-                if (esEntregado(p)) entregadosMes++;
+                if (esCompletado(p)) entregadosMes++;
             }
 
             let pParts = p.fecha.split('-');
@@ -486,7 +489,7 @@
                 let pDate = new Date(pParts[0], pParts[1] - 1, pParts[2]);
                 if (pDate >= inicioSemana) {
                     totalSemana++;
-                    if (esEntregado(p)) entregadosSemana++;
+                    if (esCompletado(p)) entregadosSemana++;
                 }
             }
         });
@@ -572,7 +575,9 @@
         const listaFinal = [...pendientes, ...procesados];
 
         listaFinal.forEach(p => {
-            let badgeClass = esEnEspera(p) ? 'espera' : 'salida';
+            let cerrado = esCerrado(p);
+            let badgeClass = esEnEspera(p) ? 'espera' : (cerrado ? 'cerrado' : 'salida');
+            let badgeText = cerrado ? '🔒 Entregado' : p.estado;
             let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
             
             let bannerUbicacion = "";
@@ -585,9 +590,9 @@
             }
 
             let html = `
-                <div class="card" ${!esEnEspera(p) ? 'style="opacity: 0.7;"' : ''}>
+                <div class="card" ${!esEnEspera(p) ? 'style="opacity: 0.75;"' : ''}>
                     ${bannerUbicacion}
-                    <span class="badge ${badgeClass}">${p.estado}</span>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
                     ${esPagado(p) ? '<span class="badge salida" style="float:right;">Pagado</span>' : ''}
                     <h3>Planilla: ${p.n_planilla}</h3>
                     <p><strong>Móvil / Motivo:</strong> ${p.movil || '-'} / ${p.motivo || '-'}</p>
@@ -607,7 +612,7 @@
                 `;
             }
 
-            if(rolActual === 'logistica' || rolActual === 'admin') {
+            if(!cerrado && (rolActual === 'logistica' || rolActual === 'admin')) {
                 html += `
                     <div style="margin-top: 10px; display:flex; gap:5px; border-top: 1px solid var(--border); padding-top: 10px;">
                         <button style="flex:1; background:var(--warning); padding:8px; font-size:0.85em;" onclick="iniciarEdicion('${p.id}')">✏️ Editar</button>
@@ -757,6 +762,11 @@
     }
 
     function eliminarPedido(id) {
+        let item = datosGlobales.find(x => x.id === id);
+        if(item && esCerrado(item)) {
+            alert("🔒 Esta entrega ya está cerrada y no se puede eliminar.");
+            return;
+        }
         if(!confirm("¿Estás 100% seguro de ELIMINAR este pedido por completo? Esta acción no se puede deshacer.")) return;
         
         datosGlobales = datosGlobales.filter(p => p.id !== id);
@@ -770,6 +780,10 @@
     function iniciarEdicion(id) {
         let item = datosGlobales.find(x => x.id === id);
         if(!item) return;
+        if(esCerrado(item)) {
+            alert("🔒 Esta entrega ya fue confirmada como entregada y está bloqueada para edición.");
+            return;
+        }
 
         idEdicionActiva = id; 
         document.getElementById('n_planilla').value = item.n_planilla;
@@ -870,8 +884,10 @@
     }
 
     function marcarSalida(id, estado) {
+        let item = datosGlobales.find(x => x.id === id);
         let obs = "";
         let statusEntregado = "Pendiente";
+        let horaEnviar = obtenerHora();
         
         if (estado === "No se llevó") {
             obs = prompt("Indica el motivo por el cual no se llevó / volvió la mercadería:");
@@ -879,16 +895,19 @@
             statusEntregado = "No";
         } else if (estado === "Se cargó") {
             statusEntregado = "Sí";
+        } else if (estado === "Entregado") {
+            if (!confirm("¿Confirmar como ENTREGADO y cerrar este pedido? Ya no se podrá editar ni devolver.")) return;
+            statusEntregado = "Sí";
+            if (item && item.hora_salida) horaEnviar = item.hora_salida;
         }
         
         const dataUpdate = {
-            action: "update_salida", id: id, estado: estado, hora_salida: obtenerHora(),
+            action: "update_salida", id: id, estado: estado, hora_salida: horaEnviar,
             observacion: obs, entregado: statusEntregado
         };
 
-        let item = datosGlobales.find(x => x.id === id);
         if(item) {
-            item.estado = estado; item.hora_salida = dataUpdate.hora_salida;
+            item.estado = estado; item.hora_salida = horaEnviar;
             if (obs) item.observacion = obs;
             item.entregado = statusEntregado;
             calcularEstadisticas();
@@ -959,13 +978,19 @@
         filtrados.forEach(p => {
             let colorPago = esPagado(p) ? 'var(--success)' : 'var(--danger)';
             let txtPago = esPagado(p) ? 'Pagado' : 'Pendiente';
+            let cerrado = esCerrado(p);
             
             let accionesHtml = '';
-            if(rolActual === 'logistica' || rolActual === 'admin') {
-                accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
-            }
-            if((rolActual === 'logistica' || puedeDespacharPedido(p)) && esEntregado(p)) {
-                accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
+            if (cerrado) {
+                accionesHtml = `<span style="color:#455a64; font-weight:bold; font-size:0.85em;">🔒 Cerrado</span>`;
+            } else {
+                if(rolActual === 'logistica' || rolActual === 'admin') {
+                    accionesHtml += `<button onclick="iniciarEdicion('${p.id}')" title="Editar" style="background:var(--warning); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer;">✏️</button>`;
+                }
+                if((rolActual === 'logistica' || puedeDespacharPedido(p)) && esCargado(p)) {
+                    accionesHtml += `<button onclick="marcarSalida('${p.id}', 'Entregado')" title="Confirmar entrega y cerrar" style="background:var(--success); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">✅ Entregado</button>`;
+                    accionesHtml += `<button onclick="marcarSalida('${p.id}', 'No se llevó')" title="Volvió la mercadería" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 8px; margin-left:5px; cursor:pointer;">↩️ Volvió</button>`;
+                }
             }
 
             let fechaBonita = p.fecha ? p.fecha.split('-').reverse().join('/') : '';
@@ -979,7 +1004,7 @@
                     <td>${p.cliente}</td>
                     <td>${p.chofer}</td>
                     <td>${p.factura || '-'}</td>
-                    <td>${p.estado}</td>
+                    <td style="${cerrado ? 'color:var(--success); font-weight:bold;' : ''}">${p.estado}</td>
                     <td class="no-print" style="color:${colorPago}; font-weight:bold;">${txtPago}</td>
                     <td class="no-print" style="white-space:nowrap;">${accionesHtml}</td>
                 </tr>
