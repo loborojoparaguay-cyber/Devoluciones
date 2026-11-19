@@ -31,6 +31,56 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 10000; }
         .modal-box { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
 
+        /* BANNERS DE UBICACIÓN */
+        .banner-km17 {
+            background: #fff59d;
+            color: #b71c1c;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1.15em;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 12px;
+            border: 3px dashed #b71c1c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .banner-km20 {
+            background: repeating-linear-gradient(
+                -45deg,
+                #c62828,
+                #c62828 12px,
+                #141414 12px,
+                #141414 24px
+            );
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 12px;
+            border: 3px solid #141414;
+            animation: pulsoKM20 2s infinite;
+        }
+
+        .banner-km20 span {
+            display: inline-block;
+            background: rgba(15, 15, 15, 0.88);
+            color: #ffffff;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 1.15em;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid #ff5252;
+        }
+
+        @keyframes pulsoKM20 {
+            0%   { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.65); }
+            70%  { box-shadow: 0 0 0 8px rgba(198, 40, 40, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+        }
+
         /* APP */
         #app_container { display: none; max-width: 1000px; margin: 0 auto; }
         
@@ -206,7 +256,6 @@
             
             <div class="form-group"><label>Factura o Remisión</label><input type="text" id="factura" placeholder="(Opcional)"></div>
 
-            <!-- NUEVO: SELECTOR DE LUGAR DE CARGA EN NUEVO REGISTRO -->
             <div class="form-group">
                 <label>¿Dónde se carga? (Opcional)</label>
                 <select id="lugar_carga" style="border: 2px solid var(--accent); font-weight: bold;">
@@ -471,7 +520,7 @@
             filtrarReporte();
         } catch (error) {
             console.error("Error al sincronizar:", error);
-            if (!enSilencio) alert("⚠️ Error de conexión. Revisa que Google Apps Script tenga acceso a 'Cualquier persona' (en Nueva implementación).");
+            if (!enSilencio) alert("⚠️ Error de conexión. Revisa que Google Apps Script tenga acceso a 'Cualquier persona'.");
         }
         if (!enSilencio) document.getElementById('loader').style.display = 'none';
     }
@@ -519,11 +568,11 @@
             
             let bannerUbicacion = "";
             if (p.observacion && String(p.observacion).includes("CARGAR EN")) {
-                bannerUbicacion = `
-                    <div style="background: #fff59d; color: #b71c1c; padding: 12px; border-radius: 6px; font-size: 1.2em; font-weight: 900; text-align: center; margin-bottom: 12px; border: 3px dashed #b71c1c; text-transform: uppercase; letter-spacing: 1px;">
-                        ${p.observacion}
-                    </div>
-                `;
+                if (String(p.observacion).includes("KM 20")) {
+                    bannerUbicacion = `<div class="banner-km20"><span>${p.observacion}</span></div>`;
+                } else {
+                    bannerUbicacion = `<div class="banner-km17">${p.observacion}</div>`;
+                }
             }
 
             let html = `
@@ -733,7 +782,6 @@
         
         document.getElementById('factura').value = item.factura || "";
 
-        // Preseleccionar lugar de carga si ya tenía KM 20 o KM 17.5
         let selLugar = document.getElementById('lugar_carga');
         if (item.observacion && String(item.observacion).includes("KM 20")) {
             selLugar.value = "KM 20";
@@ -859,6 +907,10 @@
         const contenedor = document.getElementById('print_tickets_container');
         let html = '<div class="ticket-grid">';
         pedidosImprimir.forEach(p => {
+            let avisoCarga = (p.observacion && String(p.observacion).includes("CARGAR EN"))
+                ? `<p style="border: 2px solid #000; padding: 6px; text-align: center; font-weight: bold; margin-top: 10px; font-size: 15px;">${p.observacion}</p>`
+                : '';
+
             html += `
                 <div class="ticket">
                     <h4>🎫 ADJUNTO CON ESTA PLANILLA</h4>
@@ -868,6 +920,7 @@
                     <p><strong>Cliente:</strong> ${p.cliente}</p>
                     <p><strong>Motivo:</strong> ${p.motivo || '-'}</p>
                     <p><strong>Factura:</strong> ${p.factura || 'Sin Factura'}</p>
+                    ${avisoCarga}
                 </div>
             `;
         });
