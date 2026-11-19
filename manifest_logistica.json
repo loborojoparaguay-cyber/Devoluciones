@@ -1,20 +1,27 @@
 {
-  "name": "Reenvios y Devoluciones",
+  "id": "./",
+  "name": "Reenvíos y Devoluciones",
   "short_name": "Logística",
+  "description": "Sistema de control de logística, reenvíos y devoluciones",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#121212",
+  "orientation": "portrait",
+  "background_color": "#eef2f5",
   "theme_color": "#007acc",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2769/2769339.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2769/2769339.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
+
