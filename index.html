@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logística - App Sistema</title>
+    <link rel="manifest" href="./manifest_logistica.json">
+    <meta name="theme-color" content="#007acc">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2769/2769339.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2769/2769339.png">
     <style>
         :root {
             --bg-dark: #eef2f5;      
@@ -1009,6 +1013,14 @@
                     <td class="no-print" style="white-space:nowrap;">${accionesHtml}</td>
                 </tr>
             `;
+        });
+    }
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw_logistica.js')
+                .then(() => console.log('Service Worker registrado'))
+                .catch(err => console.error('Error SW:', err));
         });
     }
 </script>
