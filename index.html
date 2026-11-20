@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logística - App Sistema</title>
+    <title>Reenvíos y Reclamos</title>
     <link rel="manifest" href="./manifest_logistica.json">
     <meta name="theme-color" content="#007acc">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2769/2769339.png">
@@ -24,6 +24,22 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; }
         
         body { background-color: var(--bg-dark); color: var(--text-main); padding: 15px; transition: background-color 0.4s ease; }
+
+        /* MARCA DE AGUA SUTIL */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: clamp(2rem, 6vw, 4.2rem);
+            font-weight: 800;
+            color: rgba(44, 62, 80, 0.055);
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+            z-index: 1000;
+            letter-spacing: 3px;
+        }
         
         /* LOGIN */
         #login_screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; justify-content: center; align-items: center; z-index: 9999; }
@@ -130,7 +146,7 @@
 
         @media print {
             body { background: white !important; color: black; padding: 0; }
-            .header, .tabs, .filters button, #loader, .btn-logout, #login_screen { display: none !important; }
+            .header, .tabs, .filters button, #loader, .btn-logout, #login_screen, .watermark { display: none !important; }
             body:not(.imprimiendo-tickets) .tab-content { padding: 0; background: transparent; box-shadow: none; }
             body:not(.imprimiendo-tickets) th { background: #eee; color: black; }
             body:not(.imprimiendo-tickets) th, body:not(.imprimiendo-tickets) td { border: 1px solid black; }
@@ -149,9 +165,11 @@
 </head>
 <body>
 
+<div class="watermark">Rodolfo Ferreira</div>
+
 <div id="login_screen">
     <div class="login-box">
-        <h2>🚚 Logística</h2>
+        <h2>🚚 Reenvíos y Reclamos</h2>
         <input type="text" id="login_user" placeholder="Usuario" autocomplete="off">
         <input type="password" id="login_pass" placeholder="Contraseña">
         <button class="btn-primary" onclick="iniciarSesion()">Ingresar</button>
@@ -187,7 +205,7 @@
 
 <div id="app_container">
     <div class="header">
-        <h2>🚚 Logística y Devoluciones</h2>
+        <h2>🚚 Reenvíos y Reclamos</h2>
         <div class="user-info">
             <span id="display_user"></span>
             <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
