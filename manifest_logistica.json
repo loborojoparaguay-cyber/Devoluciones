@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Reenvíos y Devoluciones",
-  "short_name": "Logística",
-  "description": "Sistema de control de logística, reenvíos y devoluciones",
+  "name": "Reenvíos y Reclamos",
+  "short_name": "Reenvíos",
+  "description": "Sistema de control de reenvíos y reclamos",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -24,4 +24,3 @@
     }
   ]
 }
-
